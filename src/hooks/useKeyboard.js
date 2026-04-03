@@ -26,7 +26,8 @@ export function useKeyboard(inputRef) {
         dy /= mag
       }
 
-      inputRef.current = { dx, dy }
+      // Preserve shoot flag — the game loop reads and clears it each frame
+      inputRef.current = { ...(inputRef.current ?? {}), dx, dy }
     }
 
     function onKeyDown(e) {
@@ -34,6 +35,14 @@ export function useKeyboard(inputRef) {
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
 
       const key = e.key.toLowerCase()
+
+      // Space fires a projectile (once per press, no repeat)
+      if (key === ' ' && !e.repeat) {
+        e.preventDefault()
+        inputRef.current = { ...(inputRef.current ?? { dx: 0, dy: 0 }), shoot: true }
+        return
+      }
+
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
         e.preventDefault()
         pressed.add(key)

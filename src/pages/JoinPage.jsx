@@ -184,7 +184,12 @@ export default function JoinPage() {
               players={players}
               joystickRef={joystickRef}
             />
-            {isTouchDevice && <Joystick inputRef={joystickRef} />}
+            {isTouchDevice && (
+              <div className="flex items-center justify-center gap-10">
+                <Joystick inputRef={joystickRef} />
+                <ShootButton joystickRef={joystickRef} />
+              </div>
+            )}
             <div className="text-center mt-1">
               <PulseDot text="Waiting for the host to start…" />
             </div>
@@ -291,6 +296,28 @@ function PulseDot({ text, color = 'text-slate-400' }) {
       <span className="animate-pulse text-cyan-500 text-xs">●</span>
       <span className="text-sm">{text}</span>
     </div>
+  )
+}
+
+function ShootButton({ joystickRef }) {
+  return (
+    <button
+      className="touch-none select-none rounded-full flex items-center justify-center"
+      style={{
+        width: 52,
+        height: 52,
+        flexShrink: 0,
+        background: 'radial-gradient(circle, rgba(96,185,220,0.35), rgba(37,99,235,0.2))',
+        border: '1.5px solid rgba(96,185,220,0.35)',
+        fontSize: 22,
+      }}
+      onPointerDown={(e) => {
+        e.preventDefault()
+        joystickRef.current = { ...(joystickRef.current ?? { dx: 0, dy: 0 }), shoot: true }
+      }}
+    >
+      💧
+    </button>
   )
 }
 

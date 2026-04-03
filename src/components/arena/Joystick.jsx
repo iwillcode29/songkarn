@@ -38,13 +38,13 @@ export default function Joystick({ inputRef }) {
       let dy = (e.clientY - cy) / BASE_RADIUS
       const mag = Math.sqrt(dx * dx + dy * dy)
       if (mag > 1) { dx /= mag; dy /= mag }
-      inputRef.current = { dx, dy }
+      inputRef.current = { ...(inputRef.current ?? {}), dx, dy }
       updateKnob(dx, dy)
     }
 
     function onUp() {
       anchorRef.current = null
-      inputRef.current = { dx: 0, dy: 0 }
+      inputRef.current = { ...(inputRef.current ?? {}), dx: 0, dy: 0 }
       updateKnob(0, 0)
     }
 

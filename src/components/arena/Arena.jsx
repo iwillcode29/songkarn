@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useArena } from '../../hooks/useArena'
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../lib/arena/physics'
+import { WORLD_WIDTH, WORLD_HEIGHT, MAX_HP } from '../../lib/arena/physics'
 import Character from './Character'
 
 /**
@@ -12,7 +12,7 @@ export default function Arena({ roomId, playerId, players, joystickRef }) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
-  const { positionsRef } = useArena({ roomId, playerId, players, joystickRef })
+  const { positionsRef, hpRef, projectilesRef } = useArena({ roomId, playerId, players, joystickRef })
 
   useEffect(() => {
     const el = containerRef.current
@@ -28,7 +28,7 @@ export default function Arena({ roomId, playerId, players, joystickRef }) {
   if (positionsRef.current) {
     for (const p of players) {
       const pos = positionsRef.current.get(p.id)
-      if (pos) renderList.push({ player: p, ...pos })
+      if (pos) renderList.push({ player: p, ...pos, hp: hpRef.current.get(p.id) ?? MAX_HP })
     }
   }
 
@@ -61,7 +61,7 @@ export default function Arena({ roomId, playerId, players, joystickRef }) {
         <SceneryProps />
 
         {/* Characters */}
-        {renderList.map(({ player, x, y, facing, isMoving }, i) => (
+        {renderList.map(({ player, x, y, facing, isMoving, hp }, i) => (
           <Character
             key={player.id}
             player={player}
@@ -71,7 +71,19 @@ export default function Arena({ roomId, playerId, players, joystickRef }) {
             isMoving={isMoving ?? false}
             isSelf={player.id === playerId}
             playerIndex={i}
+            hp={hp}
           />
+        ))}
+
+        {/* Projectiles */}
+        {projectilesRef.current.map((proj) => (
+          <div
+            key={proj.id}
+            className="absolute pointer-events-none select-none"
+            style={{ left: proj.x - 6, top: proj.y - 6, fontSize: 12, lineHeight: 1 }}
+          >
+            💧
+          </div>
         ))}
       </div>
     </motion.div>

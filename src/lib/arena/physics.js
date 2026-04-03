@@ -7,6 +7,10 @@ export const WORLD_HEIGHT = 450
 export const PLAYER_RADIUS = 20
 export const MOVE_SPEED = 150 // logical px per second
 
+export const MAX_HP = 50
+export const PROJECTILE_SPEED = 300 // logical px per second
+export const PROJECTILE_RADIUS = 5
+
 /**
  * Deterministic spawn positions so every client places players identically.
  */
@@ -76,6 +80,44 @@ export function resolveCollisions(posMap) {
       }
     }
   }
+}
+
+/**
+ * Convert a facing string to a velocity vector for a projectile.
+ */
+export function facingToVelocity(facing) {
+  switch (facing) {
+    case 'up':    return { vx: 0,               vy: -PROJECTILE_SPEED }
+    case 'down':  return { vx: 0,               vy:  PROJECTILE_SPEED }
+    case 'left':  return { vx: -PROJECTILE_SPEED, vy: 0 }
+    case 'right': return { vx:  PROJECTILE_SPEED, vy: 0 }
+    default:      return { vx: 0,               vy:  PROJECTILE_SPEED }
+  }
+}
+
+/** Advance a projectile by dt milliseconds. Returns new object. */
+export function tickProjectile(proj, dt) {
+  return { ...proj, x: proj.x + proj.vx * dt / 1000, y: proj.y + proj.vy * dt / 1000 }
+}
+
+/** True if the projectile has left the world bounds. */
+export function isProjectileOutOfBounds(proj) {
+  return proj.x < 0 || proj.x > WORLD_WIDTH || proj.y < 0 || proj.y > WORLD_HEIGHT
+}
+
+/**
+ * Returns the ID of the first player the projectile overlaps, or null.
+ * Skips ownerId so the shooter can't hit themselves.
+ */
+export function checkProjectileHit(proj, posMap, ownerId) {
+  const minDist2 = (PLAYER_RADIUS + PROJECTILE_RADIUS) ** 2
+  for (const [id, pos] of posMap) {
+    if (id === ownerId) continue
+    const dx = proj.x - pos.x
+    const dy = proj.y - pos.y
+    if (dx * dx + dy * dy < minDist2) return id
+  }
+  return null
 }
 
 /**

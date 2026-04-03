@@ -4,10 +4,17 @@ import {
   getSpawnPosition,
   tickPlayer,
   resolveCollisions,
+  MAX_HP,
+  facingToVelocity,
+  tickProjectile,
+  isProjectileOutOfBounds,
+  checkProjectileHit,
 } from '../lib/arena/physics'
 
 const BROADCAST_INTERVAL_MS = 33 // ~30 Hz (was 50ms/20Hz)
 const BROADCAST_EVENT = 'pos'
+const PROJ_EVENT = 'proj'
+const DMG_EVENT = 'dmg'
 const LERP_SPEED = 18 // higher = snappier interpolation
 
 /**
@@ -35,6 +42,11 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
   const positionsRef = useRef(new Map())
   // Target positions for remote players — set by Broadcast, lerped toward in RAF
   const targetsRef = useRef(new Map())
+  // HP for each player (seeded at MAX_HP on spawn)
+  const hpRef = useRef(new Map())
+  // Active projectiles (all clients track all projectiles locally)
+  const projectilesRef = useRef([])
+  const projSeqRef = useRef(0)
 
   const [, forceRender] = useReducer((x) => x + 1, 0)
   const channelRef = useRef(null)
@@ -61,6 +73,7 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
         const initial = { x: spawn.x, y: spawn.y, facing: 'down', isMoving: false }
         positionsRef.current.set(p.id, { ...initial })
         targetsRef.current.set(p.id, { ...initial })
+        hpRef.current.set(p.id, MAX_HP)
         initialisedRef.current.add(p.id)
       }
     })
@@ -75,6 +88,15 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
     })
 
     channel
+      .on('broadcast', { event: PROJ_EVENT }, ({ payload }) => {
+        if (!payload) return
+        projectilesRef.current.push(payload)
+      })
+      .on('broadcast', { event: DMG_EVENT }, ({ payload }) => {
+        if (!payload) return
+        const cur = hpRef.current.get(payload.targetId) ?? MAX_HP
+        hpRef.current.set(payload.targetId, Math.max(0, cur - 1))
+      })
       .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
         if (!payload) return
         const prev = targetsRef.current.get(payload.playerId)
@@ -102,6 +124,7 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
           if (!nowOnline.has(id)) {
             positionsRef.current.delete(id)
             targetsRef.current.delete(id)
+            hpRef.current.delete(id)
             initialisedRef.current.delete(id)
             leftIds.push(id)
           }
@@ -188,6 +211,48 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
         resolveCollisions(positionsRef.current)
       }
 
+      // 3.5. Shoot — triggered by space bar or mobile shoot button
+      if (playerId && joystickRef?.current?.shoot) {
+        joystickRef.current = { ...joystickRef.current, shoot: false }
+        const pos = positionsRef.current.get(playerId)
+        if (pos) {
+          const { vx, vy } = facingToVelocity(pos.facing)
+          const proj = {
+            id: `${playerId}-${++projSeqRef.current}`,
+            x: pos.x,
+            y: pos.y,
+            vx,
+            vy,
+            ownerId: playerId,
+          }
+          projectilesRef.current.push(proj)
+          channelRef.current?.send({ type: 'broadcast', event: PROJ_EVENT, payload: proj })
+        }
+      }
+
+      // 3.6. Tick projectiles — owner checks hits, everyone moves them
+      if (projectilesRef.current.length > 0) {
+        const surviving = []
+        for (const proj of projectilesRef.current) {
+          const moved = tickProjectile(proj, dt)
+          if (isProjectileOutOfBounds(moved)) continue
+
+          // Only the shooter detects hits (avoids duplicate damage broadcasts)
+          if (playerId && moved.ownerId === playerId) {
+            const hitId = checkProjectileHit(moved, positionsRef.current, playerId)
+            if (hitId) {
+              const cur = hpRef.current.get(hitId) ?? MAX_HP
+              hpRef.current.set(hitId, Math.max(0, cur - 1))
+              channelRef.current?.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
+              continue // projectile consumed on hit
+            }
+          }
+
+          surviving.push(moved)
+        }
+        projectilesRef.current = surviving
+      }
+
       // 4. Broadcast own position at ~30 Hz
       if (playerId && now - lastBroadcastRef.current >= BROADCAST_INTERVAL_MS) {
         lastBroadcastRef.current = now
@@ -219,5 +284,5 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
     }
   }, [playerId, joystickRef])
 
-  return { positionsRef, connectedRef }
+  return { positionsRef, connectedRef, hpRef, projectilesRef }
 }

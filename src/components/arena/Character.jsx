@@ -7,7 +7,9 @@ const SPRITE_SIZE = SIZE * 1.8
 /**
  * Arena character — positioned absolutely, renders PixelSprite + name + indicator.
  */
-export default function Character({ player, x, y, facing, isMoving, isSelf, playerIndex = 0 }) {
+export default function Character({ player, x, y, facing, isMoving, isSelf, playerIndex = 0, hp = 50 }) {
+  const hpFrac = Math.max(0, hp) / 50
+  const barColor = hpFrac > 0.5 ? '#4ade80' : hpFrac > 0.2 ? '#fbbf24' : '#f87171'
   return (
     <div
       className="absolute select-none pointer-events-none"
@@ -26,6 +28,16 @@ export default function Character({ player, x, y, facing, isMoving, isSelf, play
           </svg>
         </div>
       )}
+
+      {/* HP bar */}
+      <div className="flex justify-center mb-0.5">
+        <div style={{ width: SPRITE_SIZE * 0.75, height: 3, background: 'rgba(0,0,0,0.5)', borderRadius: 2 }}>
+          <div style={{ width: `${hpFrac * 100}%`, height: '100%', background: barColor, borderRadius: 2, transition: 'width 0.1s' }} />
+        </div>
+      </div>
+      <div className="text-center" style={{ fontSize: 7, lineHeight: 1, color: barColor, marginBottom: 1 }}>
+        {Math.max(0, hp)}
+      </div>
 
       {/* Shadow */}
       <div
