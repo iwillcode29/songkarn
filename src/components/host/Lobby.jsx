@@ -10,7 +10,7 @@ export default function Lobby({ room, players, onClearRoom }) {
   const [starting, setStarting] = useState(false)
   const [clearing, setClearing] = useState(false)
   // Host listens to voice (mic off, but receives all players' audio)
-  const { activeSpeakers } = useVoiceChat({ roomId: room.id, peerId: `host-${room.id}`, micEnabled: false })
+  const { activeSpeakers } = useVoiceChat({ roomId: room.id, peerId: `host-${room.id}`, micEnabled: false, playAudio: false })
   const joinUrl = `${window.location.origin}/join/${room.id}`
   const canStart = players.length >= 2
 

@@ -17,7 +17,7 @@ const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
  *   Requester answers with `v-answer`
  *   Audio flows over WebRTC
  */
-export function useVoiceChat({ roomId, peerId, micEnabled }) {
+export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
   const channelRef = useRef(null)
   const streamRef = useRef(null)
   const outPcsRef = useRef(new Map())   // connections where WE send audio
@@ -69,10 +69,12 @@ export function useVoiceChat({ roomId, peerId, micEnabled }) {
         inPcsRef.current.set(senderId, pc)
 
         pc.ontrack = (e) => {
-          const audio = new Audio()
-          audio.srcObject = e.streams[0]
-          audio.play().catch(() => {})
-          audiosRef.current.set(senderId, audio)
+          if (playAudio) {
+            const audio = new Audio()
+            audio.srcObject = e.streams[0]
+            audio.play().catch(() => {})
+            audiosRef.current.set(senderId, audio)
+          }
           setActiveSpeakers((prev) => new Set(prev).add(senderId))
         }
         pc.onicecandidate = (e) => {
