@@ -52,6 +52,14 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
         payload: { from: peerId, to: payload.from } })
     })
 
+    // New peer joined — if we have mic on, re-announce so they know to request from us
+    channel.on('broadcast', { event: 'v-hello' }, ({ payload }) => {
+      if (!payload || payload.from === peerId) return
+      if (streamRef.current) {
+        channel.send({ type: 'broadcast', event: 'v-announce', payload: { from: peerId } })
+      }
+    })
+
     // Someone is requesting we send audio to them (we must have mic on)
     channel.on('broadcast', { event: 'v-request' }, ({ payload }) => {
       if (!payload || payload.to !== peerId || !streamRef.current) return
@@ -112,7 +120,10 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
       if (pc) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {})
     })
 
-    channel.subscribe()
+    channel.subscribe(() => {
+      // Broadcast presence so mic-on peers will re-announce to us
+      channel.send({ type: 'broadcast', event: 'v-hello', payload: { from: peerId } })
+    })
     channelRef.current = channel
 
     return () => {
