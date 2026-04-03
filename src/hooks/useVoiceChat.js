@@ -14,38 +14,28 @@ const ICE_SERVERS = [
   },
 ]
 
-/**
- * Unified voice chat hook.
- *
- * - Channel always subscribes so this peer can RECEIVE audio from others.
- * - When `micEnabled` is true, captures mic and sends offers to all known peers.
- * - When someone announces (mic on), all existing peers request a connection.
- *
- * Flow:
- *   Sender enables mic → broadcasts `v-announce { from }`
- *   All listeners respond with `v-request { from, to: sender }`
- *   Sender creates RTCPeerConnection + sends `v-offer` to each requester
- *   Requester answers with `v-answer`
- *   Audio flows over WebRTC
- */
 export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
   const channelRef = useRef(null)
   const streamRef = useRef(null)
-  const outPcsRef = useRef(new Map())   // connections where WE send audio
-  const inPcsRef = useRef(new Map())    // connections where WE receive audio
+  const outPcsRef = useRef(new Map())       // connections where WE send audio
+  const inPcsRef = useRef(new Map())        // connections where WE receive audio
   const audiosRef = useRef(new Map())
+  const pendingIceRef = useRef(new Map())   // buffered ICE candidates before remote desc is set
   const [micActive, setMicActive] = useState(false)
   const [activeSpeakers, setActiveSpeakers] = useState(new Set())
 
   const cleanupIn = useCallback((pid) => {
-    inPcsRef.current.get(pid)?.close(); inPcsRef.current.delete(pid)
+    inPcsRef.current.get(pid)?.close()
+    inPcsRef.current.delete(pid)
+    pendingIceRef.current.delete(pid)
     const a = audiosRef.current.get(pid)
     if (a) { a.pause(); a.srcObject = null; a.remove(); audiosRef.current.delete(pid) }
     setActiveSpeakers((prev) => { const s = new Set(prev); s.delete(pid); return s })
   }, [])
 
   const cleanupOut = useCallback((pid) => {
-    outPcsRef.current.get(pid)?.close(); outPcsRef.current.delete(pid)
+    outPcsRef.current.get(pid)?.close()
+    outPcsRef.current.delete(pid)
   }, [])
 
   // ── Channel: always subscribe for receiving ──
@@ -89,6 +79,10 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
 
         pc.ontrack = (e) => {
           if (playAudio) {
+            // Clean up any existing audio element for this sender before creating a new one
+            const existing = audiosRef.current.get(senderId)
+            if (existing) { existing.pause(); existing.srcObject = null; existing.remove() }
+
             const audio = new Audio()
             audio.autoplay = true
             audio.srcObject = e.streams[0]
@@ -107,6 +101,14 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
         }
 
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
+
+        // Drain any ICE candidates that arrived before remote description was set
+        const pending = pendingIceRef.current.get(senderId) ?? []
+        pendingIceRef.current.delete(senderId)
+        for (const candidate of pending) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {})
+        }
+
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         channel.send({ type: 'broadcast', event: 'v-answer',
@@ -124,22 +126,33 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
       if (pc) await pc.setRemoteDescription(new RTCSessionDescription(payload.answer)).catch(() => {})
     })
 
-    // ICE candidates (for both in and out)
+    // ICE candidates — buffer if PC not ready yet
     channel.on('broadcast', { event: 'v-ice' }, async ({ payload }) => {
       if (!payload || payload.to !== peerId) return
-      const pc = outPcsRef.current.get(payload.from) || inPcsRef.current.get(payload.from)
-      if (pc) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate)).catch(() => {})
+      const { from: senderId, candidate } = payload
+
+      const outPc = outPcsRef.current.get(senderId)
+      if (outPc) { await outPc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {}); return }
+
+      const inPc = inPcsRef.current.get(senderId)
+      if (inPc && inPc.remoteDescription) {
+        await inPc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {})
+      } else {
+        // Buffer until after setRemoteDescription
+        if (!pendingIceRef.current.has(senderId)) pendingIceRef.current.set(senderId, [])
+        pendingIceRef.current.get(senderId).push(candidate)
+      }
     })
 
     channel.subscribe(() => {
-      // Broadcast presence so mic-on peers will re-announce to us
       channel.send({ type: 'broadcast', event: 'v-hello', payload: { from: peerId } })
     })
     channelRef.current = channel
 
     return () => {
-      for (const pid of inPcsRef.current.keys()) cleanupIn(pid)
-      for (const pid of outPcsRef.current.keys()) cleanupOut(pid)
+      for (const pid of Array.from(inPcsRef.current.keys())) cleanupIn(pid)
+      for (const pid of Array.from(outPcsRef.current.keys())) cleanupOut(pid)
+      pendingIceRef.current.clear()
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
       setMicActive(false)
@@ -151,8 +164,7 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
   // ── Mic toggle ──
   useEffect(() => {
     if (!micEnabled) {
-      // Stop mic and tear down outgoing connections
-      for (const pid of outPcsRef.current.keys()) cleanupOut(pid)
+      for (const pid of Array.from(outPcsRef.current.keys())) cleanupOut(pid)
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
       setMicActive(false)
@@ -169,8 +181,6 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
         streamRef.current = stream
         setMicActive(true)
-
-        // Announce — all listeners will respond with v-request
         channelRef.current?.send({ type: 'broadcast', event: 'v-announce', payload: { from: peerId } })
       } catch (e) {
         console.error('voice: mic denied', e)
@@ -181,7 +191,6 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
     return () => { cancelled = true }
   }, [micEnabled, peerId, cleanupOut])
 
-  // Helper: create outgoing peer connection to send our audio
   function sendOfferTo(channel, fromId, toId, stream) {
     cleanupOut(toId)
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
