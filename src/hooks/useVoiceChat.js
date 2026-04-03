@@ -29,7 +29,7 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
   const cleanupIn = useCallback((pid) => {
     inPcsRef.current.get(pid)?.close(); inPcsRef.current.delete(pid)
     const a = audiosRef.current.get(pid)
-    if (a) { a.pause(); a.srcObject = null; audiosRef.current.delete(pid) }
+    if (a) { a.pause(); a.srcObject = null; a.remove(); audiosRef.current.delete(pid) }
     setActiveSpeakers((prev) => { const s = new Set(prev); s.delete(pid); return s })
   }, [])
 
@@ -71,7 +71,9 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
         pc.ontrack = (e) => {
           if (playAudio) {
             const audio = new Audio()
+            audio.autoplay = true
             audio.srcObject = e.streams[0]
+            document.body.appendChild(audio)
             audio.play().catch(() => {})
             audiosRef.current.set(senderId, audio)
           }
