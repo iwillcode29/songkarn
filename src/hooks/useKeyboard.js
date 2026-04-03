@@ -30,6 +30,9 @@ export function useKeyboard(inputRef) {
     }
 
     function onKeyDown(e) {
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
       const key = e.key.toLowerCase()
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
         e.preventDefault()
