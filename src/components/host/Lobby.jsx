@@ -12,6 +12,7 @@ export default function Lobby({ room, players, onClearRoom }) {
   // Host listens to voice (mic off, but receives all players' audio)
   const { activeSpeakers } = useVoiceChat({ roomId: room.id, peerId: `host-${room.id}`, micEnabled: false })
   const joinUrl = `${window.location.origin}/join/${room.id}`
+  const listenUrl = `${window.location.origin}/listen/${room.id}`
   const canStart = players.length >= 2
 
   async function handleStartGame() {
@@ -116,6 +117,16 @@ export default function Lobby({ room, players, onClearRoom }) {
             <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
               {joinUrl}
             </p>
+
+            <a
+              href={listenUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-xs py-2 px-3 rounded-lg transition-colors"
+              style={{ color: '#67e8f9', background: 'rgba(103,232,249,0.08)', border: '1px solid rgba(103,232,249,0.15)' }}
+            >
+              🔊 Listen link (ได้ยินเสียงอย่างเดียว)
+            </a>
 
             <div
               className="rounded-xl py-3 px-5"
