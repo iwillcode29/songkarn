@@ -179,6 +179,7 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
     }
 
     let cancelled = false
+    let reannounceInterval = null
     async function start() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -189,13 +190,23 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
         streamRef.current = stream
         setMicActive(true)
         channelRef.current?.send({ type: 'broadcast', event: 'v-announce', payload: { from: peerId } })
+
+        // Periodically re-announce so late joiners don't miss the initial broadcast
+        reannounceInterval = setInterval(() => {
+          if (streamRef.current && channelRef.current) {
+            channelRef.current.send({ type: 'broadcast', event: 'v-announce', payload: { from: peerId } })
+          }
+        }, 4000)
       } catch (e) {
         console.error('voice: mic denied', e)
         setMicActive(false)
       }
     }
     start()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      clearInterval(reannounceInterval)
+    }
   }, [micEnabled, peerId, cleanupOut])
 
   function sendOfferTo(channel, fromId, toId, stream) {
