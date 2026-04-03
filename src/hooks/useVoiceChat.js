@@ -83,11 +83,18 @@ export function useVoiceChat({ roomId, peerId, micEnabled, playAudio = true }) {
             const existing = audiosRef.current.get(senderId)
             if (existing) { existing.pause(); existing.srcObject = null; existing.remove() }
 
-            const audio = new Audio()
+            const audio = document.createElement('audio')
             audio.autoplay = true
+            audio.playsInline = true
             audio.srcObject = e.streams[0]
             document.body.appendChild(audio)
-            audio.play().catch(() => {})
+            audio.play().catch((err) => {
+              console.warn('voice: audio play blocked (autoplay policy):', err)
+              // Retry on next user interaction
+              const resume = () => { audio.play().catch(() => {}); document.removeEventListener('click', resume); document.removeEventListener('touchend', resume) }
+              document.addEventListener('click', resume, { once: true })
+              document.addEventListener('touchend', resume, { once: true })
+            })
             audiosRef.current.set(senderId, audio)
           }
           setActiveSpeakers((prev) => new Set(prev).add(senderId))
