@@ -1,0 +1,50 @@
+import { useEffect, useState, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
+
+/**
+ * Fetches all players in a room and subscribes to real-time changes.
+ * Re-fetches the full list on any INSERT / UPDATE / DELETE so the
+ * sorted order stays consistent.
+ */
+export function usePlayers(roomId) {
+  const [players, setPlayers] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchPlayers = useCallback(async () => {
+    if (!roomId) return
+    const { data } = await supabase
+      .from('players')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true })
+    setPlayers(data ?? [])
+    setLoading(false)
+  }, [roomId])
+
+  useEffect(() => {
+    if (!roomId) {
+      setLoading(false)
+      return
+    }
+
+    fetchPlayers()
+
+    const channel = supabase
+      .channel(`players:${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'players',
+          filter: `room_id=eq.${roomId}`,
+        },
+        fetchPlayers, // re-fetch to keep full sorted list in sync
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [roomId, fetchPlayers])
+
+  return { players, loading }
+}

@@ -1,0 +1,71 @@
+import { PLAYER_RADIUS } from '../../lib/arena/physics'
+import PixelSprite from './PixelSprite'
+
+const SIZE = PLAYER_RADIUS * 2
+const SPRITE_SIZE = SIZE * 1.8
+
+/**
+ * Arena character — positioned absolutely, renders PixelSprite + name + indicator.
+ */
+export default function Character({ player, x, y, facing, isMoving, isSelf, playerIndex = 0 }) {
+  return (
+    <div
+      className="absolute select-none pointer-events-none"
+      style={{
+        left: x - SPRITE_SIZE / 2,
+        top: y - SPRITE_SIZE / 2 - 8,
+        width: SPRITE_SIZE,
+        willChange: 'transform',
+      }}
+    >
+      {/* Self indicator — arrow pointing down */}
+      {isSelf && (
+        <div className="flex justify-center mb-0.5" style={{ animation: 'indicator-bob 1s ease-in-out infinite' }}>
+          <svg width="14" height="8" viewBox="0 0 14 8">
+            <path d="M7 8L0 0h14z" fill="#fbbf24" />
+          </svg>
+        </div>
+      )}
+
+      {/* Shadow */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 rounded-full"
+        style={{
+          width: SIZE * 0.8,
+          height: 7,
+          bottom: 2,
+          background: 'radial-gradient(ellipse, rgba(0,0,0,0.3), transparent 70%)',
+        }}
+      />
+
+      {/* Pixel sprite */}
+      <div className="flex justify-center">
+        <PixelSprite
+          facing={facing}
+          isMoving={isMoving}
+          playerIndex={playerIndex}
+          size={SPRITE_SIZE}
+        />
+      </div>
+
+      {/* Name label */}
+      <div className="text-center" style={{ marginTop: 2 }}>
+        <span
+          className="font-semibold whitespace-nowrap"
+          style={{
+            fontSize: 9,
+            lineHeight: 1,
+            color: isSelf ? '#fde68a' : '#e2e8f0',
+            textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0px 1px rgba(0,0,0,0.9)',
+            maxWidth: 72,
+            display: 'inline-block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {player.name}
+        </span>
+      </div>
+    </div>
+  )
+}
