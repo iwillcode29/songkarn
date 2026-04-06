@@ -1,10 +1,12 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { useRoom } from '../hooks/useRoom'
 import { usePlayers } from '../hooks/usePlayers'
 import { useMatches } from '../hooks/useMatches'
+import { useReconnect } from '../hooks/useReconnect'
+import { sfx } from '../lib/sfx'
 import { WEAPONS } from '../lib/gameLogic'
 import { QUIZ_QUESTIONS, ZONE_COLORS } from '../lib/quizQuestions'
 import { getZoneForPosition } from '../lib/arena/physics'
@@ -44,6 +46,13 @@ export default function JoinPage() {
 
   useKeyboard(joystickRef)
 
+  // Mobile screen shake on self-hit — seed counter forces CSS animation restart
+  const [shakeSeed, setShakeSeed] = useState(0)
+  const handleSelfHit = useCallback(() => {
+    navigator.vibrate?.(50)
+    setShakeSeed(s => s + 1)
+  }, [])
+
   // Quiz reveal state — set by host broadcast
   const [quizReveal, setQuizReveal] = useState(null) // 'a'|'b'|'c'|'d' or null
 
@@ -73,9 +82,16 @@ export default function JoinPage() {
     return () => supabase.removeChannel(ch)
   }, [roomId, playerId])
 
-  const { room, loading: roomLoading } = useRoom(roomId)
-  const { players } = usePlayers(roomId)
-  const { matches } = useMatches(roomId)
+  const { room, loading: roomLoading, refetch: refetchRoom } = useRoom(roomId)
+  const { players, refetch: refetchPlayers } = usePlayers(roomId)
+  const { matches, refetch: refetchMatches } = useMatches(roomId)
+
+  const { isReconnecting } = useReconnect(
+    useCallback(
+      () => Promise.all([refetchRoom(), refetchPlayers(), refetchMatches()]),
+      [refetchRoom, refetchPlayers, refetchMatches],
+    ),
+  )
 
   // Clear stale quiz reveal when room resets to lobby (play again)
   useEffect(() => {
@@ -97,6 +113,13 @@ export default function JoinPage() {
   }, [matches, room, playerId])
 
   const isQuiz = room?.game_mode === 'quiz'
+
+  // Unlock SFX on first touch interaction (JoinForm submit)
+  useEffect(() => {
+    function handleTouch() { sfx.unlock() }
+    document.addEventListener('pointerdown', handleTouch, { once: true })
+    return () => document.removeEventListener('pointerdown', handleTouch)
+  }, [])
 
   const phase = useMemo(() => {
     if (roomLoading) return 'loading'
@@ -137,6 +160,19 @@ export default function JoinPage() {
 
   // ── Rendering ────────────────────────────────────────────────
 
+  const reconnectBanner = isReconnecting && (
+    <div
+      className="fixed top-0 left-0 right-0 z-50 text-center text-xs font-semibold py-1.5"
+      style={{
+        background: 'rgba(232,184,74,0.15)',
+        color: 'var(--gold-400)',
+        borderBottom: '1px solid rgba(232,184,74,0.2)',
+      }}
+    >
+      Reconnecting...
+    </div>
+  )
+
   if (phase === 'loading') return <FullScreenMessage emoji="⏳" text="Loading…" />
   if (phase === 'invalid') {
     return (
@@ -148,7 +184,7 @@ export default function JoinPage() {
     )
   }
   if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
-  if (phase === 'champion') return <MobileChampionScreen player={myPlayer} />
+  if (phase === 'champion') return <>{reconnectBanner}<MobileChampionScreen player={myPlayer} /></>
 
   // Quiz mode playing screen
   if (phase === 'quiz_playing') {
@@ -158,6 +194,7 @@ export default function JoinPage() {
 
     return (
       <div className="sk-bg-fixed flex flex-col items-center px-4 py-3">
+        {reconnectBanner}
         {/* Question card (compact for mobile) */}
         {question && (
           <motion.div
@@ -217,7 +254,7 @@ export default function JoinPage() {
         </AnimatePresence>
 
         {/* Arena with zones */}
-        <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+        <div key={`shake-q-${shakeSeed}`} className={`flex-1 min-h-0 w-full flex items-center justify-center${shakeSeed > 0 ? ' hit-shake' : ''}`}>
           <div style={{ width: '100%', maxWidth: 'calc((100dvh - 220px) * 800 / 450)' }}>
             <Arena
               roomId={roomId}
@@ -227,6 +264,7 @@ export default function JoinPage() {
               quizOverlay={quizOverlay}
               selfPositionRef={myPositionRef}
               frozen={!!quizReveal}
+              onSelfHit={handleSelfHit}
             />
           </div>
         </div>
@@ -249,6 +287,7 @@ export default function JoinPage() {
 
   return (
     <div className="sk-bg-fixed flex flex-col items-center justify-center px-5 py-4">
+      {reconnectBanner}
       {/* Player badge */}
       {myPlayer && (
         <div className="flex items-center gap-3 mb-6 w-full max-w-sm">
@@ -304,12 +343,15 @@ export default function JoinPage() {
             >
               {isTouchDevice ? 'Walk around while waiting!' : 'Use W A S D to walk around!'}
             </p>
-            <Arena
-              roomId={roomId}
-              playerId={playerId}
-              players={players}
-              joystickRef={joystickRef}
-            />
+            <div key={`shake-l-${shakeSeed}`} className={shakeSeed > 0 ? 'hit-shake' : undefined}>
+              <Arena
+                roomId={roomId}
+                playerId={playerId}
+                players={players}
+                joystickRef={joystickRef}
+                onSelfHit={handleSelfHit}
+              />
+            </div>
             {isTouchDevice && (
               <div className="flex items-center justify-center gap-10">
                 <Joystick inputRef={joystickRef} />
@@ -443,6 +485,7 @@ function ShootButton({ joystickRef }) {
       }}
       onPointerDown={(e) => {
         e.preventDefault()
+        sfx.unlock()
         joystickRef.current = { ...(joystickRef.current ?? { dx: 0, dy: 0 }), shoot: true }
       }}
     >

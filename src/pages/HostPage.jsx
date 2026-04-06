@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { resolveChoice, createBracketPairs } from '../lib/gameLogic'
+import { resolveChoice, createBracketPairs, randomWeapon } from '../lib/gameLogic'
 import { useRoom } from '../hooks/useRoom'
 import { usePlayers } from '../hooks/usePlayers'
 import { useMatches } from '../hooks/useMatches'
@@ -31,6 +31,7 @@ export default function HostPage() {
   const [pendingResults, setPendingResults] = useState(null)
   // Guards handleNextRound against double-taps that would insert duplicate match rows
   const [isAdvancing, setIsAdvancing] = useState(false)
+  const [isForcing, setIsForcing] = useState(false)
 
   const { room } = useRoom(roomId)
   const { players } = usePlayers(roomId)
@@ -158,6 +159,31 @@ export default function HostPage() {
   }
 
   /**
+   * Force Random: fill missing choices with random weapons so the round can proceed.
+   */
+  async function handleForceRandom() {
+    const missing = activeMatches.filter((m) => !m.p1_choice || !m.p2_choice)
+    if (missing.length === 0 || isForcing) return
+
+    setIsForcing(true)
+    try {
+      await Promise.all(
+        missing.map((m) =>
+          supabase
+            .from('matches')
+            .update({
+              p1_choice: m.p1_choice ?? randomWeapon(),
+              p2_choice: m.p2_choice ?? randomWeapon(),
+            })
+            .eq('id', m.id),
+        ),
+      )
+    } finally {
+      setIsForcing(false)
+    }
+  }
+
+  /**
    * Next Round: shuffle alive players into new bracket, create match records,
    * then increment current_round on the room.
    */
@@ -250,6 +276,8 @@ export default function HostPage() {
       onRematches={handleRematches}
       onNextRound={handleNextRound}
       isAdvancing={isAdvancing}
+      onForceRandom={handleForceRandom}
+      isForcing={isForcing}
     />
   )
 }

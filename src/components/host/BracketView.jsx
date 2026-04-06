@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WEAPONS } from '../../lib/gameLogic'
+import { sfx } from '../../lib/sfx'
 
 export default function BracketView({
   room,
@@ -11,6 +13,8 @@ export default function BracketView({
   onRematches,
   onNextRound,
   isAdvancing = false,
+  onForceRandom,
+  isForcing = false,
 }) {
   const playerMap = Object.fromEntries(players.map((p) => [p.id, p]))
 
@@ -35,6 +39,21 @@ export default function BracketView({
   const canAdvanceRound = allResolved && drawMatches.length === 0
 
   const waitingCount = activeMatches.filter((m) => !m.p1_choice || !m.p2_choice).length
+
+  const canForceRandom =
+    !isRevealing &&
+    !isForcing &&
+    activeMatches.length > 0 &&
+    activeMatches.some((m) => !m.p1_choice || !m.p2_choice)
+
+  // Countdown beeps during reveal animation
+  useEffect(() => {
+    if (!isRevealing) return
+    sfx.countdown(3)
+    const t1 = setTimeout(() => sfx.countdown(2), 400)
+    const t2 = setTimeout(() => sfx.countdown(1), 800)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [isRevealing])
 
   return (
     <div className="sk-bg p-6 overflow-hidden">
@@ -73,6 +92,19 @@ export default function BracketView({
           {/* Action buttons */}
           <div className="flex gap-3">
             <AnimatePresence mode="wait">
+              {canForceRandom && (
+                <ActionButton
+                  key="force"
+                  onClick={onForceRandom}
+                  disabled={isForcing}
+                  bg="linear-gradient(135deg, var(--terra-400), var(--terra-600))"
+                  color="var(--cream-50)"
+                  shadow="rgba(217,119,85,0.2)"
+                >
+                  {isForcing ? 'Randomising...' : `Force Random (${waitingCount})`}
+                </ActionButton>
+              )}
+
               {canReveal && (
                 <ActionButton
                   key="reveal"

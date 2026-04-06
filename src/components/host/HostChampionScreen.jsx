@@ -1,7 +1,10 @@
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { LaiThaiDivider } from '../ThaiDecor'
+import { sfx } from '../../lib/sfx'
 
 export default function HostChampionScreen({ champion, champions = [], isQuiz = false, onPlayAgain }) {
+  useEffect(() => { sfx.fanfare() }, [])
   // Gold & water confetti
   const confetti = Array.from({ length: 35 }, (_, i) => ({
     id: i,

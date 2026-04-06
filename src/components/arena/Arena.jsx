@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, memo } from 'react'
 import { motion } from 'framer-motion'
 import { useArena } from '../../hooks/useArena'
 import { WORLD_WIDTH, WORLD_HEIGHT, MAX_HP } from '../../lib/arena/physics'
@@ -9,11 +9,15 @@ import Character from './Character'
  * Scales the logical world (800×450) to fit any container.
  * All scenery uses crisp SVG pixel art — no emoji.
  */
-export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, selfPositionRef, frozen }) {
+export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, selfPositionRef, frozen, onSelfHit }) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
-  const { positionsRef, targetsRef, hpRef, projectilesRef } = useArena({ roomId, playerId, players, joystickRef, frozen })
+  const { positionsRef, targetsRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef } = useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit })
+
+  // Splash popup pool — ephemeral, RAF-driven
+  const splashPoolRef = useRef([])
+  const splashSeenRef = useRef(new Set())
 
   useEffect(() => {
     if (positionsMapRef) positionsMapRef.current = positionsRef.current
@@ -36,13 +40,40 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
     return () => ro.disconnect()
   }, [])
 
+  // Stable palette index based on join order (not filtered renderList index)
+  const playerIndexMap = new Map(players.map((p, i) => [p.id, i]))
+
   const renderList = []
   if (positionsRef.current) {
     for (const p of players) {
       const pos = positionsRef.current.get(p.id)
-      if (pos) renderList.push({ player: p, ...pos, hp: hpRef.current.get(p.id) ?? MAX_HP })
+      if (pos) renderList.push({
+        id: p.id, name: p.name, ...pos, isSelf: p.id === playerId,
+        hp: hpRef.current.get(p.id) ?? MAX_HP,
+        hitTime: hitSignalsRef.current.get(p.id)?.time ?? 0,
+        stableIndex: playerIndexMap.get(p.id) ?? 0,
+      })
     }
   }
+
+  // Ingest new splash popups from hit signals
+  const now = performance.now()
+  for (const [id, signal] of hitSignalsRef.current) {
+    const key = `${id}-${signal.time}`
+    if (now - signal.time < 50 && !splashSeenRef.current.has(key)) {
+      splashSeenRef.current.add(key)
+      splashPoolRef.current.push({ id: key, x: signal.x, y: signal.y, born: signal.time })
+    }
+  }
+  // GC old splashes + old seen keys
+  splashPoolRef.current = splashPoolRef.current.filter(s => now - s.born < 600)
+  if (splashSeenRef.current.size > 200) splashSeenRef.current.clear()
+
+  // Host screen shake on elimination only (not on mobile)
+  const SHAKE_DURATION = 500
+  const elimAge = now - (eliminationSignalRef.current?.time ?? 0)
+  const isElimShaking = !playerId && elimAge < SHAKE_DURATION
+  const shakeX = isElimShaking ? Math.sin(elimAge * 0.08) * 6 * (1 - elimAge / SHAKE_DURATION) : 0
 
   return (
     <motion.div
@@ -60,7 +91,7 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
         style={{
           width: WORLD_WIDTH,
           height: WORLD_HEIGHT,
-          transform: `scale(${scale})`,
+          transform: `translate(${shakeX}px, 0) scale(${scale})`,
           transformOrigin: 'top left',
           position: 'relative',
           background: '#4a6b3a',
@@ -79,17 +110,18 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
         {quizOverlay}
 
         {/* Characters */}
-        {renderList.map(({ player, x, y, facing, isMoving, hp }, i) => (
+        {renderList.map(({ id, name, x, y, facing, isMoving, isSelf, hp, hitTime, stableIndex }) => (
           <Character
-            key={player.id}
-            player={player}
+            key={id}
+            name={name}
             x={x}
             y={y}
             facing={facing ?? 'down'}
             isMoving={isMoving ?? false}
-            isSelf={player.id === playerId}
-            playerIndex={i}
+            isSelf={isSelf}
+            playerIndex={stableIndex}
             hp={hp}
+            hitTime={hitTime}
           />
         ))}
 
@@ -98,18 +130,44 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
           <div
             key={proj.id}
             className="absolute pointer-events-none select-none"
-            style={{ left: proj.x - 6, top: proj.y - 6 }}
+            style={{ top: 0, left: 0, transform: `translate3d(${Math.round(proj.x - 6)}px, ${Math.round(proj.y - 6)}px, 0)`, willChange: 'transform' }}
           >
             <WaterDrop />
           </div>
+        ))}
+
+        {/* Splash popups */}
+        {splashPoolRef.current.map(s => (
+          <SplashPopup key={s.id} x={s.x} y={s.y} born={s.born} now={now} />
         ))}
       </div>
     </motion.div>
   )
 }
 
+/* ─── Splash popup — 💦 that floats up and fades ─── */
+function SplashPopup({ x, y, born, now }) {
+  const age = (now - born) / 600
+  const opacity = Math.max(0, 1 - age)
+  return (
+    <div
+      className="absolute pointer-events-none select-none"
+      style={{
+        top: 0,
+        left: 0,
+        transform: `translate3d(${Math.round(x - 12)}px, ${Math.round(y - 12 - 30 * age)}px, 0)`,
+        fontSize: 20,
+        opacity,
+        willChange: 'transform, opacity',
+      }}
+    >
+      💦
+    </div>
+  )
+}
+
 /* ─── Pixel water drop projectile ─── */
-function WaterDrop() {
+const WaterDrop = memo(function WaterDrop() {
   return (
     <svg width={12} height={12} viewBox="0 0 8 8" shapeRendering="crispEdges" style={{ imageRendering: 'pixelated' }}>
       <rect x={3} y={0} width={2} height={1} fill="#7dd3e8" />
@@ -124,10 +182,10 @@ function WaterDrop() {
       <rect x={3} y={1} width={1} height={1} fill="#cffafe" />
     </svg>
   )
-}
+})
 
 /* ─── Arena border — 3px pixel frame ─── */
-function PixelFrame() {
+const PixelFrame = memo(function PixelFrame() {
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
       {/* Top border */}
@@ -149,10 +207,14 @@ function PixelFrame() {
       <div className="absolute" style={{ bottom: 0, right: 0, width: 3, height: 3, background: '#d4982b' }} />
     </div>
   )
-}
+})
+
+/* ─── Precomputed path edge indices ─── */
+const PATH_EDGE_COUNT = Math.ceil(WORLD_WIDTH / 8)
+const PATH_EDGES = Array.from({ length: PATH_EDGE_COUNT }, (_, i) => i)
 
 /* ─── Ground — tiled pixel grass with dirt path ─── */
-function GroundTexture() {
+const GroundTexture = memo(function GroundTexture() {
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Base tile pattern via repeating SVG */}
@@ -222,7 +284,7 @@ function GroundTexture() {
         {/* Dirt path — horizontal across middle */}
         <rect x={0} y={195} width={WORLD_WIDTH} height={60} fill="url(#dirt-tile)" />
         {/* Path edges — dithered grass/dirt transition */}
-        {Array.from({ length: Math.ceil(WORLD_WIDTH / 8) }, (_, i) => (
+        {PATH_EDGES.map(i => (
           <g key={`path-edge-${i}`}>
             <rect x={i * 8} y={193 + (i % 3)} width={4} height={2} fill="#5a7040" />
             <rect x={i * 8 + 4} y={254 - (i % 3)} width={4} height={2} fill="#5a7040" />
@@ -244,10 +306,10 @@ function GroundTexture() {
       </svg>
     </div>
   )
-}
+})
 
 /* ─── Pixel water puddles ─── */
-function WaterPuddles() {
+const WaterPuddles = memo(function WaterPuddles() {
   return (
     <>
       {PUDDLES.map((p, i) => (
@@ -279,7 +341,7 @@ function WaterPuddles() {
       ))}
     </>
   )
-}
+})
 
 const PUDDLES = [
   { x: 80, y: 120, w: 48, h: 16, pw: 12, ph: 4 },
@@ -291,7 +353,7 @@ const PUDDLES = [
 ]
 
 /* ─── Pixel scenery props ─── */
-function SceneryProps() {
+const SceneryProps = memo(function SceneryProps() {
   return (
     <>
       {/* Trees */}
@@ -321,7 +383,7 @@ function SceneryProps() {
       <PixelTempleGate x={365} y={410} size={70} />
     </>
   )
-}
+})
 
 /* ─── Pixel tree — SVG inline ─── */
 function PixelTree({ x, y, size, variant = 'round', flip }) {

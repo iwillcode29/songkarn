@@ -1,5 +1,6 @@
 import { useEffect, useRef, useReducer } from 'react'
 import { supabase } from '../lib/supabase'
+import { sfx } from '../lib/sfx'
 import {
   getSpawnPosition,
   tickPlayer,
@@ -22,7 +23,7 @@ const LERP_SPEED = 18 // higher = snappier interpolation
  * room alive across Arena remounts (lobby → quiz) so there's zero reconnect
  * gap and broadcasts flow continuously.
  */
-const arenaChannels = new Map() // roomId → { channel, refCount }
+const arenaChannels = new Map() // roomId → { channel, refCount, listenersAttached }
 
 function acquireArenaChannel(roomId) {
   const existing = arenaChannels.get(roomId)
@@ -33,7 +34,7 @@ function acquireArenaChannel(roomId) {
   const channel = supabase.channel(`arena:${roomId}`, {
     config: { broadcast: { self: false } },
   })
-  arenaChannels.set(roomId, { channel, refCount: 1 })
+  arenaChannels.set(roomId, { channel, refCount: 1, listenersAttached: false })
   return channel
 }
 
@@ -68,7 +69,7 @@ function lerp(a, b, t) {
  * @param {React.MutableRefObject} opts.joystickRef — { dx, dy } written by Joystick
  * @returns {{ positionsRef: React.MutableRefObject<Map>, connectedRef: React.MutableRefObject<boolean> }}
  */
-export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
+export function useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit }) {
   // Rendered positions — what Arena reads every frame
   const positionsRef = useRef(new Map())
   // Target positions for remote players — set by Broadcast, lerped toward in RAF
@@ -78,6 +79,10 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
   // Active projectiles (all clients track all projectiles locally)
   const projectilesRef = useRef([])
   const projSeqRef = useRef(0)
+  // Hit signals for visual feedback — Map<playerId, { time, x, y }>
+  const hitSignalsRef = useRef(new Map())
+  // Elimination signal for host screen shake — { time }
+  const eliminationSignalRef = useRef({ time: 0 })
 
   const [, forceRender] = useReducer((x) => x + 1, 0)
   const channelRef = useRef(null)
@@ -92,6 +97,12 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
 
   const frozenRef = useRef(frozen)
   frozenRef.current = frozen
+
+  const playerIdRef = useRef(playerId)
+  useEffect(() => { playerIdRef.current = playerId }, [playerId])
+
+  const onSelfHitRef = useRef(onSelfHit)
+  useEffect(() => { onSelfHitRef.current = onSelfHit })
 
   const playersRef = useRef(players)
   useEffect(() => {
@@ -120,33 +131,53 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
     if (!roomId) return
 
     const channel = acquireArenaChannel(roomId)
+    const entry = arenaChannels.get(roomId)
     const isNew = channel.state !== 'joined' && channel.state !== 'joining'
 
-    // Attach broadcast listeners. Supabase allows adding broadcast callbacks
-    // even on an already-joined channel — only presence callbacks are blocked.
-    channel
-      .on('broadcast', { event: PROJ_EVENT }, ({ payload }) => {
-        if (!payload) return
-        projectilesRef.current.push(payload)
-      })
-      .on('broadcast', { event: DMG_EVENT }, ({ payload }) => {
-        if (!payload) return
-        const cur = hpRef.current.get(payload.targetId) ?? MAX_HP
-        hpRef.current.set(payload.targetId, Math.max(0, cur - 1))
-      })
-      .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
-        if (!payload) return
-        const prev = targetsRef.current.get(payload.playerId)
-        if (prev && payload.seq <= (prev._seq ?? 0)) return
-
-        targetsRef.current.set(payload.playerId, {
-          x: payload.x,
-          y: payload.y,
-          facing: payload.facing,
-          isMoving: payload.isMoving,
-          _seq: payload.seq,
+    // Attach broadcast listeners ONLY ONCE per channel lifetime to prevent
+    // duplicate handlers stacking up on Arena remount (lobby → quiz).
+    // Handlers use refs to access current values (playerId, onSelfHit).
+    if (entry && !entry.listenersAttached) {
+      entry.listenersAttached = true
+      channel
+        .on('broadcast', { event: PROJ_EVENT }, ({ payload }) => {
+          if (!payload) return
+          projectilesRef.current.push(payload)
         })
-      })
+        .on('broadcast', { event: DMG_EVENT }, ({ payload }) => {
+          if (!payload) return
+          const cur = hpRef.current.get(payload.targetId) ?? MAX_HP
+          const newHp = Math.max(0, cur - 1)
+          hpRef.current.set(payload.targetId, newHp)
+          // Hit signal for flash + splash
+          const pos = positionsRef.current.get(payload.targetId)
+          if (pos) {
+            hitSignalsRef.current.set(payload.targetId, { time: performance.now(), x: pos.x, y: pos.y })
+          }
+          // Elimination signal for host screen shake
+          if (newHp === 0) {
+            eliminationSignalRef.current = { time: performance.now() }
+          }
+          // Self-hit feedback (vibrate + screen shake on mobile)
+          if (payload.targetId === playerIdRef.current) {
+            sfx.hit()
+            onSelfHitRef.current?.()
+          }
+        })
+        .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
+          if (!payload) return
+          const prev = targetsRef.current.get(payload.playerId)
+          if (prev && payload.seq <= (prev._seq ?? 0)) return
+
+          targetsRef.current.set(payload.playerId, {
+            x: payload.x,
+            y: payload.y,
+            facing: payload.facing,
+            isMoving: payload.isMoving,
+            _seq: payload.seq,
+          })
+        })
+    }
 
     // Only attach presence + subscribe on a fresh channel (not already joined)
     if (isNew) {
@@ -266,6 +297,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
             ownerId: playerId,
           }
           projectilesRef.current.push(proj)
+          sfx.shoot()
           channelRef.current?.send({ type: 'broadcast', event: PROJ_EVENT, payload: proj })
         }
       }
@@ -282,7 +314,11 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
             const hitId = checkProjectileHit(moved, positionsRef.current, playerId)
             if (hitId) {
               const cur = hpRef.current.get(hitId) ?? MAX_HP
-              hpRef.current.set(hitId, Math.max(0, cur - 1))
+              const newHp = Math.max(0, cur - 1)
+              hpRef.current.set(hitId, newHp)
+              // Hit signal for flash + splash (shooter sees it immediately)
+              hitSignalsRef.current.set(hitId, { time: performance.now(), x: moved.x, y: moved.y })
+              if (newHp === 0) eliminationSignalRef.current = { time: performance.now() }
               channelRef.current?.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
               continue // projectile consumed on hit
             }
@@ -324,5 +360,5 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
     }
   }, [playerId, joystickRef])
 
-  return { positionsRef, targetsRef, connectedRef, hpRef, projectilesRef }
+  return { positionsRef, targetsRef, connectedRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef }
 }

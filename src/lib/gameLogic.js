@@ -62,6 +62,14 @@ export function createBracketPairs(players) {
 }
 
 /**
+ * Returns a random weapon key.
+ */
+export function randomWeapon() {
+  const keys = Object.keys(WEAPONS)
+  return keys[Math.floor(Math.random() * keys.length)]
+}
+
+/**
  * Returns true when every non-bye, waiting match in the list
  * has both players' choices submitted — i.e., ready to reveal.
  */

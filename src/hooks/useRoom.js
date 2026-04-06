@@ -48,5 +48,5 @@ export function useRoom(roomId) {
     return () => supabase.removeChannel(channel)
   }, [roomId, fetchRoom])
 
-  return { room, loading }
+  return { room, loading, refetch: fetchRoom }
 }

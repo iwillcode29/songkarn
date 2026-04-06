@@ -163,3 +163,14 @@
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-3px); }
 }
+
+@keyframes mobile-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-5px); }
+  40%      { transform: translateX(5px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+.hit-shake {
+  animation: mobile-shake 400ms ease-out;
+}

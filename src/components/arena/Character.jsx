@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { PLAYER_RADIUS } from '../../lib/arena/physics'
 import PixelSprite from './PixelSprite'
 
@@ -5,17 +6,25 @@ const SIZE = PLAYER_RADIUS * 2
 const SPRITE_SIZE = SIZE * 1.8
 
 /**
- * Arena character — positioned absolutely, renders PixelSprite + name + indicator.
+ * Arena character — positioned via translate3d for GPU compositing.
  */
-export default function Character({ player, x, y, facing, isMoving, isSelf, playerIndex = 0, hp = 50 }) {
+const FLASH_DURATION = 300
+
+const Character = memo(function Character({ name, x, y, facing, isMoving, isSelf, playerIndex = 0, hp = 50, hitTime = 0 }) {
   const hpFrac = Math.max(0, hp) / 50
   const barColor = hpFrac > 0.5 ? '#4ade80' : hpFrac > 0.2 ? '#fbbf24' : '#f87171'
+
+  // Hit flash — oscillates 3x over 300ms
+  const flashAge = hitTime ? performance.now() - hitTime : 0
+  const flashCycle = Math.floor(flashAge / 80) % 2
+  const isFlashing = hitTime > 0 && flashAge < FLASH_DURATION && flashCycle === 0
   return (
     <div
       className="absolute select-none pointer-events-none"
       style={{
-        left: x - SPRITE_SIZE / 2,
-        top: y - SPRITE_SIZE / 2 - 8,
+        top: 0,
+        left: 0,
+        transform: `translate3d(${Math.round(x - SPRITE_SIZE / 2)}px, ${Math.round(y - SPRITE_SIZE / 2 - 8)}px, 0)`,
         width: SPRITE_SIZE,
         willChange: 'transform',
       }}
@@ -51,7 +60,7 @@ export default function Character({ player, x, y, facing, isMoving, isSelf, play
       />
 
       {/* Pixel sprite */}
-      <div className="flex justify-center">
+      <div className="flex justify-center" style={isFlashing ? { filter: 'brightness(10) saturate(0)' } : undefined}>
         <PixelSprite
           facing={facing}
           isMoving={isMoving}
@@ -75,9 +84,11 @@ export default function Character({ player, x, y, facing, isMoving, isSelf, play
             textOverflow: 'ellipsis',
           }}
         >
-          {player.name}
+          {name}
         </span>
       </div>
     </div>
   )
-}
+})
+
+export default Character

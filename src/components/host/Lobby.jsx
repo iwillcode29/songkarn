@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
 import { createBracketPairs } from '../../lib/gameLogic'
 import Arena from '../arena/Arena'
 import { LaiThaiDivider, CornerOrnament } from '../ThaiDecor'
+import { sfx } from '../../lib/sfx'
 
 const GAME_MODES = [
   {
@@ -28,7 +29,22 @@ export default function Lobby({ room, players, onClearRoom }) {
   const [clearing, setClearing] = useState(false)
   const joinUrl = `${window.location.origin}/join/${room.id}`
 
+  // Unlock audio + start lobby BGM on first click
+  useEffect(() => {
+    function handleClick() {
+      sfx.unlock()
+      sfx.bgmStart()
+    }
+    document.addEventListener('pointerdown', handleClick, { once: true })
+    return () => {
+      document.removeEventListener('pointerdown', handleClick)
+      sfx.bgmStop()
+    }
+  }, [])
+
   async function handleStartGame(mode) {
+    sfx.unlock()
+    sfx.bgmStop()
     const minPlayers = GAME_MODES.find((m) => m.id === mode)?.minPlayers ?? 2
     if (players.length < minPlayers || starting) return
     setStarting(true)

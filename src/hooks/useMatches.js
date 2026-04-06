@@ -46,5 +46,5 @@ export function useMatches(roomId) {
     return () => supabase.removeChannel(channel)
   }, [roomId, fetchMatches])
 
-  return { matches, loading }
+  return { matches, loading, refetch: fetchMatches }
 }

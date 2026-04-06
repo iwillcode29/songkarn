@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 /**
  * Pixel-art RPG character — inline SVG, 16×16 grid.
  * 4 directions × 4 walk frames, 8 Songkran-festival palettes.
@@ -210,7 +212,7 @@ function SpriteFrame({ facing, frame, palette, size }) {
   )
 }
 
-export default function PixelSprite({ facing = 'down', isMoving = false, playerIndex = 0, size = 40 }) {
+const PixelSprite = memo(function PixelSprite({ facing = 'down', isMoving = false, playerIndex = 0, size = 40 }) {
   const palette = PALETTES[playerIndex % PALETTES.length]
 
   if (!isMoving) {
@@ -230,6 +232,7 @@ export default function PixelSprite({ facing = 'down', isMoving = false, playerI
       ))}
     </div>
   )
-}
+})
 
+export default PixelSprite
 export { PALETTES }
