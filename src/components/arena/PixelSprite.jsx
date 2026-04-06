@@ -1,6 +1,9 @@
 /**
  * Pixel-art RPG character — inline SVG, 16×16 grid.
  * 4 directions × 4 walk frames, 8 Songkran-festival palettes.
+ *
+ * Every coordinate snaps to the integer grid for crispy pixel rendering.
+ * No rounded corners — true pixel art has sharp edges.
  */
 
 const FRAME_W = 16
@@ -8,14 +11,14 @@ const FRAME_H = 16
 
 // Songkran festival palettes — vibrant, warm, celebratory
 const PALETTES = [
-  { body: '#e11d48', bodyDark: '#be123c', hair: '#1c1917', skin: '#fcd9b6', acc: '#fbbf24' }, // rose + gold
-  { body: '#2563eb', bodyDark: '#1d4ed8', hair: '#fbbf24', skin: '#fcd9b6', acc: '#38bdf8' }, // royal blue
-  { body: '#16a34a', bodyDark: '#15803d', hair: '#78350f', skin: '#fde68a', acc: '#fbbf24' }, // forest green
-  { body: '#d946ef', bodyDark: '#c026d3', hair: '#1c1917', skin: '#fcd9b6', acc: '#f0abfc' }, // magenta
-  { body: '#ea580c', bodyDark: '#c2410c', hair: '#fef3c7', skin: '#fde68a', acc: '#fb923c' }, // burnt orange
-  { body: '#7c3aed', bodyDark: '#6d28d9', hair: '#fbbf24', skin: '#fcd9b6', acc: '#a78bfa' }, // violet
-  { body: '#0891b2', bodyDark: '#0e7490', hair: '#451a03', skin: '#fde68a', acc: '#22d3ee' }, // teal
-  { body: '#ca8a04', bodyDark: '#a16207', hair: '#1c1917', skin: '#fcd9b6', acc: '#fde047' }, // gold
+  { body: '#e11d48', bodyDark: '#9f1239', bodyLight: '#fb7185', hair: '#1c1917', hairHi: '#44403c', skin: '#fcd9b6', skinShade: '#e8b88a', acc: '#fbbf24', accDark: '#d97706', outline: '#4a0519' },
+  { body: '#2563eb', bodyDark: '#1e3a8a', bodyLight: '#60a5fa', hair: '#fbbf24', hairHi: '#fde68a', skin: '#fcd9b6', skinShade: '#e8b88a', acc: '#38bdf8', accDark: '#0284c7', outline: '#1e1b4b' },
+  { body: '#16a34a', bodyDark: '#14532d', bodyLight: '#4ade80', hair: '#78350f', hairHi: '#a16207', skin: '#fde68a', skinShade: '#d4a843', acc: '#fbbf24', accDark: '#d97706', outline: '#052e16' },
+  { body: '#d946ef', bodyDark: '#86198f', bodyLight: '#f0abfc', hair: '#1c1917', hairHi: '#44403c', skin: '#fcd9b6', skinShade: '#e8b88a', acc: '#f0abfc', accDark: '#c026d3', outline: '#4a044e' },
+  { body: '#ea580c', bodyDark: '#7c2d12', bodyLight: '#fb923c', hair: '#fef3c7', hairHi: '#ffffff', skin: '#fde68a', skinShade: '#d4a843', acc: '#fb923c', accDark: '#c2410c', outline: '#431407' },
+  { body: '#7c3aed', bodyDark: '#3b0764', bodyLight: '#a78bfa', hair: '#fbbf24', hairHi: '#fde68a', skin: '#fcd9b6', skinShade: '#e8b88a', acc: '#a78bfa', accDark: '#6d28d9', outline: '#2e1065' },
+  { body: '#0891b2', bodyDark: '#164e63', bodyLight: '#22d3ee', hair: '#451a03', hairHi: '#78350f', skin: '#fde68a', skinShade: '#d4a843', acc: '#22d3ee', accDark: '#0e7490', outline: '#083344' },
+  { body: '#ca8a04', bodyDark: '#713f12', bodyLight: '#facc15', hair: '#1c1917', hairHi: '#44403c', skin: '#fcd9b6', skinShade: '#e8b88a', acc: '#fde047', accDark: '#a16207', outline: '#422006' },
 ]
 
 const WALK_FRAMES = [
@@ -25,10 +28,27 @@ const WALK_FRAMES = [
   [1, -1],
 ]
 
+/** Single pixel helper */
+function Px({ x, y, fill, opacity }) {
+  return <rect x={x} y={y} width={1} height={1} fill={fill} opacity={opacity} />
+}
+
+/** Multi-pixel row helper */
+function Row({ x, y, w, fill, opacity }) {
+  return <rect x={x} y={y} width={w} height={1} fill={fill} opacity={opacity} />
+}
+
+/** Multi-pixel block helper */
+function Block({ x, y, w, h, fill, opacity }) {
+  return <rect x={x} y={y} width={w} height={h} fill={fill} opacity={opacity} />
+}
+
 function SpriteFrame({ facing, frame, palette, size }) {
   const [ldy, rdy] = WALK_FRAMES[frame]
   const showFront = facing === 'down'
   const showBack = facing === 'up'
+  const showLeft = facing === 'left'
+  const showRight = facing === 'right'
   const armSwing = frame === 1 ? 1 : frame === 3 ? -1 : 0
 
   return (
@@ -37,71 +57,155 @@ function SpriteFrame({ facing, frame, palette, size }) {
       height={size}
       viewBox={`0 0 ${FRAME_W} ${FRAME_H}`}
       style={{ imageRendering: 'pixelated' }}
+      shapeRendering="crispEdges"
     >
-      {/* Shadow */}
-      <ellipse cx={8} cy={15} rx={4} ry={1.5} fill="rgba(0,0,0,0.25)" />
+      {/* Ground shadow */}
+      <Row x={5} y={15} w={6} fill="#000" opacity={0.2} />
+      <Row x={4} y={14} w={8} fill="#000" opacity={0.12} />
 
-      {/* Legs */}
-      <rect x={5} y={11 + ldy} width={2} height={3} fill={palette.bodyDark} />
-      <rect x={9} y={11 + rdy} width={2} height={3} fill={palette.bodyDark} />
-      {/* Shoes */}
-      <rect x={5} y={13 + ldy} width={2} height={1} rx={0.5} fill="#44403c" />
-      <rect x={9} y={13 + rdy} width={2} height={1} rx={0.5} fill="#44403c" />
+      {/* === LEGS === */}
+      {/* Left leg */}
+      <Block x={5} y={11 + ldy} w={2} h={3} fill={palette.bodyDark} />
+      <Px x={5} y={11 + ldy} fill={palette.body} />
+      {/* Right leg */}
+      <Block x={9} y={11 + rdy} w={2} h={3} fill={palette.bodyDark} />
+      <Px x={10} y={11 + rdy} fill={palette.body} />
 
-      {/* Body */}
-      <rect x={4} y={6} width={8} height={6} rx={1} fill={palette.body} />
-      {/* Shirt accent stripe */}
-      <rect x={4} y={10} width={8} height={1} fill={palette.bodyDark} opacity={0.5} />
+      {/* Shoes — dark with highlight */}
+      <Row x={5} y={13 + ldy} w={2} fill="#292524" />
+      <Px x={5} y={13 + ldy} fill="#44403c" />
+      <Row x={9} y={13 + rdy} w={2} fill="#292524" />
+      <Px x={10} y={13 + rdy} fill="#44403c" />
 
-      {/* Arms */}
-      <rect x={2} y={7 + armSwing} width={2} height={4} rx={1} fill={palette.body} />
-      <rect x={12} y={7 - armSwing} width={2} height={4} rx={1} fill={palette.body} />
-      {/* Hands */}
-      <rect x={2} y={10 + armSwing} width={2} height={1} rx={0.5} fill={palette.skin} />
-      <rect x={12} y={10 - armSwing} width={2} height={1} rx={0.5} fill={palette.skin} />
+      {/* === BODY === */}
+      {/* Shirt main */}
+      <Block x={4} y={7} w={8} h={4} fill={palette.body} />
+      {/* Shirt shading — left edge darker */}
+      <Block x={4} y={7} w={1} h={4} fill={palette.bodyDark} />
+      {/* Shirt highlight — right side */}
+      <Px x={11} y={7} fill={palette.bodyLight} />
+      <Px x={11} y={8} fill={palette.bodyLight} />
+      {/* Belt / hem accent */}
+      <Row x={4} y={10} w={8} fill={palette.bodyDark} />
+      {/* Collar */}
+      <Row x={5} y={7} w={6} fill={palette.bodyLight} />
 
-      {/* Head */}
-      <rect x={4} y={1} width={8} height={6} rx={2} fill={palette.skin} />
-
-      {/* Hair */}
-      {showBack ? (
-        <rect x={4} y={0.5} width={8} height={4.5} rx={2} fill={palette.hair} />
-      ) : (
-        <>
-          <rect x={4} y={0.5} width={8} height={3} rx={2} fill={palette.hair} />
-          {/* Side bangs */}
-          <rect x={3.5} y={2} width={1.5} height={2} rx={0.5} fill={palette.hair} />
-          <rect x={11} y={2} width={1.5} height={2} rx={0.5} fill={palette.hair} />
-        </>
-      )}
-
-      {/* Eyes */}
+      {/* Songkran sash — diagonal accent across shirt */}
       {showFront && (
         <>
-          <rect x={5.5} y={4} width={1.5} height={1.5} rx={0.5} fill="#1c1917" />
-          <rect x={9} y={4} width={1.5} height={1.5} rx={0.5} fill="#1c1917" />
-          {/* Eye highlights */}
-          <rect x={6.2} y={4} width={0.6} height={0.6} rx={0.3} fill="#fefce8" opacity={0.8} />
-          <rect x={9.7} y={4} width={0.6} height={0.6} rx={0.3} fill="#fefce8" opacity={0.8} />
-          {/* Mouth */}
-          <rect x={7} y={5.8} width={2} height={0.5} rx={0.25} fill="#b91c1c" opacity={0.4} />
-        </>
-      )}
-      {facing === 'left' && (
-        <>
-          <rect x={4.5} y={4} width={1.5} height={1.5} rx={0.5} fill="#1c1917" />
-          <rect x={5.2} y={4} width={0.6} height={0.6} rx={0.3} fill="#fefce8" opacity={0.8} />
-        </>
-      )}
-      {facing === 'right' && (
-        <>
-          <rect x={10} y={4} width={1.5} height={1.5} rx={0.5} fill="#1c1917" />
-          <rect x={10.7} y={4} width={0.6} height={0.6} rx={0.3} fill="#fefce8" opacity={0.8} />
+          <Px x={5} y={7} fill={palette.acc} />
+          <Px x={6} y={8} fill={palette.acc} />
+          <Px x={7} y={9} fill={palette.acc} />
+          <Px x={8} y={10} fill={palette.acc} />
         </>
       )}
 
-      {/* Headband / accessory — festival flair */}
-      <rect x={4} y={3} width={8} height={0.8} rx={0.3} fill={palette.acc} opacity={0.7} />
+      {/* === ARMS === */}
+      {/* Left arm */}
+      <Block x={3} y={7 + armSwing} w={1} h={4} fill={palette.body} />
+      <Px x={3} y={7 + armSwing} fill={palette.bodyDark} />
+      {/* Left hand */}
+      <Px x={3} y={10 + armSwing} fill={palette.skin} />
+
+      {/* Right arm */}
+      <Block x={12} y={7 - armSwing} w={1} h={4} fill={palette.body} />
+      <Px x={12} y={7 - armSwing} fill={palette.bodyLight} />
+      {/* Right hand */}
+      <Px x={12} y={10 - armSwing} fill={palette.skin} />
+
+      {/* === HEAD === */}
+      {/* Head base — 8px wide, 5px tall */}
+      <Block x={4} y={2} w={8} h={5} fill={palette.skin} />
+      {/* Cheek shading */}
+      <Px x={4} y={4} fill={palette.skinShade} />
+      <Px x={11} y={4} fill={palette.skinShade} />
+      {/* Chin shading */}
+      <Row x={5} y={6} w={6} fill={palette.skinShade} />
+      {/* Forehead highlight */}
+      <Row x={6} y={2} w={4} fill="#fef3c7" opacity={0.3} />
+
+      {/* Ears */}
+      <Px x={3} y={4} fill={palette.skin} />
+      <Px x={12} y={4} fill={palette.skinShade} />
+
+      {/* === HAIR === */}
+      {showBack ? (
+        /* Back view — full hair coverage */
+        <>
+          <Block x={4} y={0} w={8} h={5} fill={palette.hair} />
+          <Row x={5} y={0} w={6} fill={palette.hairHi} />
+          <Px x={3} y={2} fill={palette.hair} />
+          <Px x={12} y={2} fill={palette.hair} />
+          {/* Hair shine */}
+          <Px x={6} y={1} fill={palette.hairHi} />
+          <Px x={7} y={1} fill={palette.hairHi} />
+        </>
+      ) : (
+        /* Front/side view — top hair + bangs */
+        <>
+          <Block x={4} y={0} w={8} h={3} fill={palette.hair} />
+          <Row x={5} y={0} w={6} fill={palette.hairHi} />
+          {/* Side tufts */}
+          <Block x={3} y={1} w={1} h={3} fill={palette.hair} />
+          <Block x={12} y={1} w={1} h={3} fill={palette.hair} />
+          {/* Hair shine */}
+          <Px x={6} y={0} fill={palette.hairHi} />
+          <Px x={7} y={0} fill={palette.hairHi} />
+          {/* Bangs fringe */}
+          <Px x={5} y={2} fill={palette.hair} />
+          <Px x={10} y={2} fill={palette.hair} />
+        </>
+      )}
+
+      {/* === HEADBAND / FESTIVAL GARLAND === */}
+      <Row x={3} y={2} w={10} fill={palette.acc} />
+      {/* Garland knot/flower detail */}
+      <Px x={3} y={2} fill={palette.accDark} />
+      <Px x={12} y={2} fill={palette.accDark} />
+      {/* Center flower on headband */}
+      <Px x={7} y={1} fill={palette.acc} />
+      <Px x={8} y={1} fill={palette.acc} />
+
+      {/* === FACE === */}
+      {showFront && (
+        <>
+          {/* Eyes — 2px wide each for expressiveness */}
+          <Row x={5} y={4} w={2} fill="#1c1917" />
+          <Row x={9} y={4} w={2} fill="#1c1917" />
+          {/* Eye whites / highlights — top-left pixel */}
+          <Px x={5} y={4} fill="#fefce8" />
+          <Px x={9} y={4} fill="#fefce8" />
+          {/* Blush marks */}
+          <Px x={4} y={5} fill="#fca5a5" opacity={0.5} />
+          <Px x={11} y={5} fill="#fca5a5" opacity={0.5} />
+          {/* Mouth — happy smile */}
+          <Px x={7} y={5} fill="#b91c1c" opacity={0.6} />
+          <Px x={8} y={5} fill="#b91c1c" opacity={0.6} />
+        </>
+      )}
+      {showLeft && (
+        <>
+          {/* Side-facing eye */}
+          <Row x={5} y={4} w={2} fill="#1c1917" />
+          <Px x={5} y={4} fill="#fefce8" />
+          {/* Side mouth hint */}
+          <Px x={6} y={5} fill="#b91c1c" opacity={0.4} />
+        </>
+      )}
+      {showRight && (
+        <>
+          <Row x={9} y={4} w={2} fill="#1c1917" />
+          <Px x={10} y={4} fill="#fefce8" />
+          <Px x={9} y={5} fill="#b91c1c" opacity={0.4} />
+        </>
+      )}
+
+      {/* === OUTLINE (subtle dark border for definition) === */}
+      {/* Head outline — top */}
+      <Row x={4} y={0} w={8} fill={palette.outline} opacity={0.25} />
+      {/* Body outline — sides */}
+      <Block x={3} y={7} w={1} h={4} fill={palette.outline} opacity={0.15} />
+      <Block x={12} y={7} w={1} h={4} fill={palette.outline} opacity={0.15} />
     </svg>
   )
 }

@@ -207,6 +207,7 @@ export default function JoinPage() {
               players={players.filter((p) => p.is_alive)}
               joystickRef={joystickRef}
               quizOverlay={quizOverlay}
+              frozen={!!quizReveal}
             />
           </div>
         </div>

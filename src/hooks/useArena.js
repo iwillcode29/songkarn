@@ -37,7 +37,7 @@ function lerp(a, b, t) {
  * @param {React.MutableRefObject} opts.joystickRef — { dx, dy } written by Joystick
  * @returns {{ positionsRef: React.MutableRefObject<Map>, connectedRef: React.MutableRefObject<boolean> }}
  */
-export function useArena({ roomId, playerId, players, joystickRef }) {
+export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
   // Rendered positions — what Arena reads every frame
   const positionsRef = useRef(new Map())
   // Target positions for remote players — set by Broadcast, lerped toward in RAF
@@ -58,6 +58,9 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
 
   const initialisedRef = useRef(new Set())
   const onlineRef = useRef(new Set())
+
+  const frozenRef = useRef(frozen)
+  frozenRef.current = frozen
 
   const playersRef = useRef(players)
   useEffect(() => {
@@ -182,7 +185,7 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
 
       // 1. Move own player from joystick input (mobile only)
       if (playerId && joystickRef?.current) {
-        const { dx, dy } = joystickRef.current
+        const { dx, dy } = frozenRef.current ? { dx: 0, dy: 0 } : joystickRef.current
         const prev = positionsRef.current.get(playerId)
         if (prev) {
           const next = tickPlayer(prev, dx, dy, dt)
@@ -216,7 +219,7 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
       }
 
       // 3.5. Shoot — triggered by space bar or mobile shoot button
-      if (playerId && joystickRef?.current?.shoot) {
+      if (playerId && !frozenRef.current && joystickRef?.current?.shoot) {
         joystickRef.current = { ...joystickRef.current, shoot: false }
         const pos = positionsRef.current.get(playerId)
         if (pos) {
@@ -268,8 +271,8 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
             event: BROADCAST_EVENT,
             payload: {
               playerId,
-              x: Math.round(pos.x),
-              y: Math.round(pos.y),
+              x: pos.x,
+              y: pos.y,
               facing: pos.facing,
               isMoving: pos.isMoving,
               seq: seqRef.current,
