@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { QUIZ_QUESTIONS, ZONE_COLORS } from '../../lib/quizQuestions'
@@ -12,9 +12,19 @@ import QuizZones from '../arena/QuizZones'
  *
  * Positions are snapshot'd at the moment the host clicks "Reveal"
  * so players cannot reposition after seeing the correct answer.
+ * Broadcasts reveal/next events so mobile clients can show results.
  */
 export default function QuizHostView({ room, players }) {
   const arenaRef = useRef(new Map())
+  const channelRef = useRef(null)
+
+  // Quiz broadcast channel — host sends reveal/next events to mobile clients
+  useEffect(() => {
+    const ch = supabase.channel(`quiz:${room.id}`, { config: { broadcast: { self: false } } })
+    ch.subscribe()
+    channelRef.current = ch
+    return () => { supabase.removeChannel(ch); channelRef.current = null }
+  }, [room.id])
   const [isRevealing, setIsRevealing] = useState(false)
   const [revealedAnswer, setRevealedAnswer] = useState(null)
   const [isAdvancing, setIsAdvancing] = useState(false)
@@ -38,8 +48,12 @@ export default function QuizHostView({ room, players }) {
     const posSnapshot = new Map(arenaRef.current)
     const aliveSnapshot = [...alivePlayers]
 
-    // Show the correct answer on screen
+    // Show the correct answer on screen and broadcast to mobile clients
     setRevealedAnswer(correctAnswer)
+    channelRef.current?.send({
+      type: 'broadcast', event: 'quiz-reveal',
+      payload: { correct: correctAnswer, round: room.current_round },
+    })
 
     // Wait for animation
     await new Promise((r) => setTimeout(r, 2000))
@@ -87,6 +101,10 @@ export default function QuizHostView({ room, players }) {
     if (!error) {
       setRevealedAnswer(null)
       setRevealStats(null)
+      channelRef.current?.send({
+        type: 'broadcast', event: 'quiz-next',
+        payload: { round: room.current_round + 1 },
+      })
     }
     setIsAdvancing(false)
   }

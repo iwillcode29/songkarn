@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { supabase } from '../lib/supabase'
 import { useRoom } from '../hooks/useRoom'
 import { usePlayers } from '../hooks/usePlayers'
 import { useMatches } from '../hooks/useMatches'
@@ -42,6 +43,22 @@ export default function JoinPage() {
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
 
   useKeyboard(joystickRef)
+
+  // Quiz reveal state — set by host broadcast
+  const [quizReveal, setQuizReveal] = useState(null) // 'a'|'b'|'c'|'d' or null
+
+  useEffect(() => {
+    if (!roomId) return
+    const ch = supabase.channel(`quiz:${roomId}`, { config: { broadcast: { self: false } } })
+    ch.on('broadcast', { event: 'quiz-reveal' }, ({ payload }) => {
+      if (payload?.correct) setQuizReveal(payload.correct)
+    })
+    ch.on('broadcast', { event: 'quiz-next' }, () => {
+      setQuizReveal(null)
+    })
+    ch.subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [roomId])
 
   const { room, loading: roomLoading } = useRoom(roomId)
   const { players } = usePlayers(roomId)
@@ -119,7 +136,7 @@ export default function JoinPage() {
   if (phase === 'quiz_playing') {
     const questionIndex = (room?.current_round ?? 1) - 1
     const question = QUIZ_QUESTIONS[questionIndex] ?? null
-    const quizOverlay = <QuizZones question={question} revealedAnswer={null} />
+    const quizOverlay = <QuizZones question={question} revealedAnswer={quizReveal} />
 
     return (
       <div className="sk-bg-fixed flex flex-col items-center px-4 py-3">
@@ -140,21 +157,25 @@ export default function JoinPage() {
             <div className="grid grid-cols-2 gap-1.5">
               {['a', 'b', 'c', 'd'].map((key) => {
                 const color = ZONE_COLORS[key]
+                const isCorrect = quizReveal === key
+                const isWrong = quizReveal && quizReveal !== key
                 return (
                   <div
                     key={key}
-                    className="flex items-center gap-1.5 rounded-lg px-2 py-1.5"
+                    className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-all"
                     style={{
-                      background: color.bg,
-                      border: `1px solid ${color.border}`,
+                      background: isCorrect ? 'rgba(34,197,94,0.2)' : isWrong ? 'rgba(255,255,255,0.02)' : color.bg,
+                      border: `1px solid ${isCorrect ? 'rgba(34,197,94,0.5)' : isWrong ? 'rgba(255,255,255,0.04)' : color.border}`,
+                      opacity: isWrong ? 0.4 : 1,
                     }}
                   >
-                    <span className="font-black text-sm" style={{ color: color.text }}>
+                    <span className="font-black text-sm" style={{ color: isCorrect ? '#22c55e' : color.text }}>
                       {key.toUpperCase()}
                     </span>
-                    <span className="font-body text-xs" style={{ color: 'var(--cream-200)' }}>
+                    <span className="font-body text-xs" style={{ color: isCorrect ? '#bbf7d0' : 'var(--cream-200)' }}>
                       {question[key]}
                     </span>
+                    {isCorrect && <span className="ml-auto text-xs">✅</span>}
                   </div>
                 )
               })}
@@ -162,9 +183,24 @@ export default function JoinPage() {
           </motion.div>
         )}
 
-        {/* Arena with zones — flex-1 + min-h-0 lets it fill remaining space without overflow */}
+        {/* Result banner after reveal */}
+        <AnimatePresence>
+          {quizReveal && question && (
+            <motion.p
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-center text-sm font-bold mb-1 flex-shrink-0"
+              style={{ color: 'var(--water-300)' }}
+            >
+              Answer: {quizReveal.toUpperCase()} — {question[quizReveal]}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        {/* Arena with zones */}
         <div className="flex-1 min-h-0 w-full flex items-center justify-center">
-          <div style={{ width: '100%', maxWidth: 'calc((100dvh - 200px) * 800 / 450)' }}>
+          <div style={{ width: '100%', maxWidth: 'calc((100dvh - 220px) * 800 / 450)' }}>
             <Arena
               roomId={roomId}
               playerId={playerId}
@@ -176,14 +212,16 @@ export default function JoinPage() {
         </div>
 
         {/* Controls */}
-        {isTouchDevice && (
+        {isTouchDevice && !quizReveal && (
           <div className="flex items-center justify-center gap-10 mt-1 flex-shrink-0">
             <Joystick inputRef={joystickRef} />
           </div>
         )}
 
         <p className="text-center mt-1 text-xs font-body flex-shrink-0" style={{ color: 'var(--cream-400)' }}>
-          {isTouchDevice ? 'Run to your answer zone!' : 'Use W A S D to move to your answer!'}
+          {quizReveal
+            ? 'Waiting for next question...'
+            : isTouchDevice ? 'Run to your answer zone!' : 'Use W A S D to move to your answer!'}
         </p>
       </div>
     )
