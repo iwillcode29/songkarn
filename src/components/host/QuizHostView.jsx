@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
-import { QUIZ_QUESTIONS, ZONE_COLORS } from '../../lib/quizQuestions'
+import { getQuizQuestions, ZONE_COLORS } from '../../lib/quizQuestions'
 import { getZoneForPosition } from '../../lib/arena/physics'
 import Arena from '../arena/Arena'
 import QuizZones from '../arena/QuizZones'
@@ -36,9 +36,10 @@ export default function QuizHostView({ room, players }) {
   const [isAdvancing, setIsAdvancing] = useState(false)
   const [revealStats, setRevealStats] = useState(null) // { survived, eliminated }
 
+  const questions = useMemo(() => getQuizQuestions(room.id), [room.id])
   const questionIndex = room.current_round - 1
-  const question = QUIZ_QUESTIONS[questionIndex] ?? null
-  const isLastQuestion = questionIndex >= QUIZ_QUESTIONS.length - 1
+  const question = questions[questionIndex] ?? null
+  const isLastQuestion = questionIndex >= questions.length - 1
   const alivePlayers = useMemo(() => players.filter((p) => p.is_alive), [players])
 
   const allRevealed = revealedAnswer !== null
@@ -143,7 +144,7 @@ export default function QuizHostView({ room, players }) {
             <h2 className="text-3xl lg:text-4xl font-black" style={{ color: 'var(--cream-50)' }}>
               Question <span className="sk-gold-text">{room.current_round}</span>
               <span className="text-lg font-normal ml-2" style={{ color: 'var(--cream-400)' }}>
-                / {QUIZ_QUESTIONS.length}
+                / {questions.length}
               </span>
             </h2>
             <p className="font-body text-sm mt-1" style={{ color: 'var(--cream-400)' }}>

@@ -8,7 +8,7 @@ import { useMatches } from '../hooks/useMatches'
 import { useReconnect } from '../hooks/useReconnect'
 import { sfx } from '../lib/sfx'
 import { WEAPONS } from '../lib/gameLogic'
-import { QUIZ_QUESTIONS, ZONE_COLORS } from '../lib/quizQuestions'
+import { getQuizQuestions, ZONE_COLORS } from '../lib/quizQuestions'
 import { getZoneForPosition } from '../lib/arena/physics'
 import JoinForm from '../components/mobile/JoinForm'
 import PickScreen from '../components/mobile/PickScreen'
@@ -210,8 +210,9 @@ export default function JoinPage() {
   // No unmount/remount = no channel reconnect.
   const showArena = phase === 'lobby_wait' || phase === 'quiz_playing'
 
+  const questions = useMemo(() => roomId ? getQuizQuestions(roomId) : [], [roomId])
   const questionIndex = (room?.current_round ?? 1) - 1
-  const question = isQuiz ? (QUIZ_QUESTIONS[questionIndex] ?? null) : null
+  const question = isQuiz ? (questions[questionIndex] ?? null) : null
   const quizOverlay = phase === 'quiz_playing' ? <QuizZones question={question} revealedAnswer={quizReveal} /> : null
 
   // In quiz mode, show only alive players; in lobby, show all
@@ -230,7 +231,7 @@ export default function JoinPage() {
           className="w-full max-w-sm mb-2 flex-shrink-0"
         >
           <p className="text-xs font-body mb-1" style={{ color: 'var(--cream-400)' }}>
-            Question {room.current_round} / {QUIZ_QUESTIONS.length}
+            Question {room.current_round} / {questions.length}
           </p>
           <p className="text-lg font-bold leading-snug mb-2" style={{ color: 'var(--cream-50)' }}>
             {question.question}
