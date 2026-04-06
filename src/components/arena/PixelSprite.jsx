@@ -202,6 +202,51 @@ function SpriteFrame({ facing, frame, palette, size }) {
         </>
       )}
 
+      {/* === WATER GUN === */}
+      {/* Classic Super Soaker — green body, orange pump, blue nozzle */}
+      {showFront && (
+        <>
+          {/* Gun body — extends right from hand */}
+          <Row x={13} y={9 - armSwing} w={2} fill="#22c55e" />
+          {/* Pump / tank top */}
+          <Px x={13} y={8 - armSwing} fill="#f97316" />
+          {/* Nozzle */}
+          <Px x={15} y={9 - armSwing} fill="#38bdf8" />
+          {/* Grip shadow */}
+          <Px x={13} y={10 - armSwing} fill="#15803d" />
+        </>
+      )}
+      {showBack && (
+        <>
+          <Row x={13} y={9 - armSwing} w={2} fill="#22c55e" />
+          <Px x={13} y={8 - armSwing} fill="#f97316" />
+          <Px x={15} y={9 - armSwing} fill="#38bdf8" />
+          <Px x={13} y={10 - armSwing} fill="#15803d" />
+        </>
+      )}
+      {showRight && (
+        <>
+          {/* Gun points right — longer barrel visible */}
+          <Row x={13} y={9 - armSwing} w={3} fill="#22c55e" />
+          <Px x={13} y={8 - armSwing} fill="#f97316" />
+          <Px x={14} y={8 - armSwing} fill="#f97316" />
+          {/* Nozzle tip with water drip */}
+          <Px x={15} y={8 - armSwing} fill="#38bdf8" />
+          <Px x={15} y={10 - armSwing} fill="#15803d" />
+        </>
+      )}
+      {showLeft && (
+        <>
+          {/* Gun in left hand, points left */}
+          <Row x={0} y={9 + armSwing} w={3} fill="#22c55e" />
+          <Px x={1} y={8 + armSwing} fill="#f97316" />
+          <Px x={2} y={8 + armSwing} fill="#f97316" />
+          {/* Nozzle */}
+          <Px x={0} y={8 + armSwing} fill="#38bdf8" />
+          <Px x={0} y={10 + armSwing} fill="#15803d" />
+        </>
+      )}
+
       {/* === OUTLINE (subtle dark border for definition) === */}
       {/* Head outline — top */}
       <Row x={4} y={0} w={8} fill={palette.outline} opacity={0.25} />
