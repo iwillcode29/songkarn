@@ -18,6 +18,37 @@ const DMG_EVENT = 'dmg'
 const LERP_SPEED = 18 // higher = snappier interpolation
 
 /**
+ * Module-level arena channel cache. Keeps one Supabase Realtime channel per
+ * room alive across Arena remounts (lobby → quiz) so there's zero reconnect
+ * gap and broadcasts flow continuously.
+ */
+const arenaChannels = new Map() // roomId → { channel, refCount }
+
+function acquireArenaChannel(roomId) {
+  const existing = arenaChannels.get(roomId)
+  if (existing && existing.channel.state !== 'closed') {
+    existing.refCount++
+    return existing.channel
+  }
+  const channel = supabase.channel(`arena:${roomId}`, {
+    config: { broadcast: { self: false } },
+  })
+  arenaChannels.set(roomId, { channel, refCount: 1 })
+  return channel
+}
+
+function releaseArenaChannel(roomId) {
+  const entry = arenaChannels.get(roomId)
+  if (!entry) return
+  entry.refCount--
+  if (entry.refCount <= 0) {
+    entry.channel.untrack()
+    supabase.removeChannel(entry.channel)
+    arenaChannels.delete(roomId)
+  }
+}
+
+/**
  * Linear interpolation helper.
  */
 function lerp(a, b, t) {
@@ -83,20 +114,16 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
   }, [players])
 
   // ── Broadcast channel ──
+  // Uses a module-level channel cache so the same WebSocket channel survives
+  // Arena remounts (lobby → quiz). No reconnect gap, no lost broadcasts.
   useEffect(() => {
     if (!roomId) return
 
-    // Force-remove any stale channel with this name first. Supabase reuses
-    // channel instances by name, so a lobby→quiz remount race can return
-    // the old already-joined channel, preventing listeners from attaching.
-    const channelName = `arena:${roomId}`
-    const stale = supabase.getChannels().find((c) => c.topic === `realtime:${channelName}`)
-    if (stale) supabase.removeChannel(stale)
+    const channel = acquireArenaChannel(roomId)
+    const isNew = channel.state !== 'joined' && channel.state !== 'joining'
 
-    const channel = supabase.channel(channelName, {
-      config: { broadcast: { self: false } },
-    })
-
+    // Attach broadcast listeners. Supabase allows adding broadcast callbacks
+    // even on an already-joined channel — only presence callbacks are blocked.
     channel
       .on('broadcast', { event: PROJ_EVENT }, ({ payload }) => {
         if (!payload) return
@@ -120,59 +147,63 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
           _seq: payload.seq,
         })
       })
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState()
-        const nowOnline = new Set()
-        for (const key of Object.keys(state)) {
-          for (const p of state[key]) {
-            if (p.playerId) nowOnline.add(p.playerId)
-          }
-        }
-        const leftIds = []
-        for (const id of onlineRef.current) {
-          if (!nowOnline.has(id)) {
-            positionsRef.current.delete(id)
-            targetsRef.current.delete(id)
-            hpRef.current.delete(id)
-            initialisedRef.current.delete(id)
-            leftIds.push(id)
-          }
-        }
-        onlineRef.current = nowOnline
 
-        // Host deletes disconnected players from DB after a grace period.
-        // This gives players who are rejoining (page refresh, name re-entry)
-        // time to re-track their presence before being removed.
-        if (!playerId && leftIds.length > 0) {
-          setTimeout(() => {
-            // Re-check: only delete players still absent after the grace period
-            const currentState = channel.presenceState()
-            const stillOnline = new Set()
-            for (const key of Object.keys(currentState)) {
-              for (const p of currentState[key]) {
-                if (p.playerId) stillOnline.add(p.playerId)
+    // Only attach presence + subscribe on a fresh channel (not already joined)
+    if (isNew) {
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState()
+          const nowOnline = new Set()
+          for (const key of Object.keys(state)) {
+            for (const p of state[key]) {
+              if (p.playerId) nowOnline.add(p.playerId)
+            }
+          }
+          const leftIds = []
+          for (const id of onlineRef.current) {
+            if (!nowOnline.has(id)) {
+              positionsRef.current.delete(id)
+              targetsRef.current.delete(id)
+              hpRef.current.delete(id)
+              initialisedRef.current.delete(id)
+              leftIds.push(id)
+            }
+          }
+          onlineRef.current = nowOnline
+
+          if (!playerId && leftIds.length > 0) {
+            setTimeout(() => {
+              const currentState = channel.presenceState()
+              const stillOnline = new Set()
+              for (const key of Object.keys(currentState)) {
+                for (const p of currentState[key]) {
+                  if (p.playerId) stillOnline.add(p.playerId)
+                }
               }
-            }
-            const confirmedLeft = leftIds.filter((id) => !stillOnline.has(id))
-            if (confirmedLeft.length > 0) {
-              supabase.from('players').delete().in('id', confirmedLeft)
-            }
-          }, 5000)
-        }
-      })
-      .subscribe(async (status) => {
-        connectedRef.current = status === 'SUBSCRIBED'
-        if (status === 'SUBSCRIBED' && playerId) {
-          await channel.track({ playerId })
-        }
-      })
+              const confirmedLeft = leftIds.filter((id) => !stillOnline.has(id))
+              if (confirmedLeft.length > 0) {
+                supabase.from('players').delete().in('id', confirmedLeft)
+              }
+            }, 5000)
+          }
+        })
+        .subscribe(async (status) => {
+          connectedRef.current = status === 'SUBSCRIBED'
+          if (status === 'SUBSCRIBED' && playerId) {
+            await channel.track({ playerId })
+          }
+        })
+    } else {
+      // Channel already connected — mark as connected and track presence
+      connectedRef.current = true
+      if (playerId) channel.track({ playerId })
+    }
 
     channelRef.current = channel
     return () => {
-      channel.untrack()
-      supabase.removeChannel(channel)
       channelRef.current = null
       connectedRef.current = false
+      releaseArenaChannel(roomId)
     }
   }, [roomId, playerId])
 
@@ -266,7 +297,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
       if (playerId && now - lastBroadcastRef.current >= BROADCAST_INTERVAL_MS) {
         lastBroadcastRef.current = now
         const pos = positionsRef.current.get(playerId)
-        if (pos && channelRef.current) {
+        if (pos && channelRef.current && connectedRef.current) {
           seqRef.current++
           channelRef.current.send({
             type: 'broadcast',
