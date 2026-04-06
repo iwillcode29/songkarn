@@ -45,6 +45,9 @@ export function usePlayers(roomId) {
         // Re-fetch once subscribed so we don't miss events that fired
         // between the initial fetch and the subscription being ready.
         if (status === 'SUBSCRIBED') fetchPlayers()
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          fetchPlayers()
+        }
       })
 
     // Polling fallback — realtime postgres_changes can silently fail

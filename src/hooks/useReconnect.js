@@ -18,7 +18,12 @@ export function useReconnect(onReconnect) {
 
   useEffect(() => {
     function onVisible() {
-      if (document.visibilityState === 'visible') trigger()
+      if (document.visibilityState === 'visible') {
+        // Immediate fetch + delayed second fetch to catch events
+        // that arrive while channels are still resubscribing
+        trigger()
+        setTimeout(trigger, 1500)
+      }
     }
 
     document.addEventListener('visibilitychange', onVisible)

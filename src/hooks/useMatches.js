@@ -43,6 +43,9 @@ export function useMatches(roomId) {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') fetchMatches()
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          fetchMatches()
+        }
       })
 
     const interval = setInterval(fetchMatches, 3000)

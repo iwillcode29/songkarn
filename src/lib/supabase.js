@@ -9,4 +9,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  realtime: {
+    heartbeatIntervalMs: 15000,       // detect dead sockets faster (default 30s)
+    reconnectAfterMs: (tries) =>      // aggressive reconnect: 200ms → 1s → 2s → 5s cap
+      Math.min(200 * Math.pow(2, tries), 5000),
+  },
+})

@@ -57,30 +57,49 @@ export default function JoinPage() {
   const [quizReveal, setQuizReveal] = useState(null) // 'a'|'b'|'c'|'d' or null
 
   const myPositionRef = useRef(null) // Arena writes player's own position here
+  const playerIdRef = useRef(playerId)
+  playerIdRef.current = playerId
 
+  // Quiz broadcast channel — stable per roomId (reads playerId from ref, not closure)
   useEffect(() => {
     if (!roomId) return
-    const ch = supabase.channel(`quiz:${roomId}`, { config: { broadcast: { self: false } } })
-    ch.on('broadcast', { event: 'quiz-reveal' }, ({ payload }) => {
-      if (payload?.correct) {
-        setQuizReveal(payload.correct)
-        // Report own position back to host so zone detection uses the exact
-        // coordinates the player sees on their screen (no broadcast lag).
-        if (playerId && myPositionRef.current) {
-          const pos = myPositionRef.current
-          ch.send({
-            type: 'broadcast', event: 'quiz-pos',
-            payload: { playerId, x: pos.x, y: pos.y },
-          })
+    let ch = null
+    let destroyed = false
+
+    function createChannel() {
+      ch = supabase.channel(`quiz:${roomId}`, { config: { broadcast: { self: false } } })
+      ch.on('broadcast', { event: 'quiz-reveal' }, ({ payload }) => {
+        if (payload?.correct) {
+          setQuizReveal(payload.correct)
+          const pid = playerIdRef.current
+          if (pid && myPositionRef.current) {
+            const pos = myPositionRef.current
+            ch.send({
+              type: 'broadcast', event: 'quiz-pos',
+              payload: { playerId: pid, x: pos.x, y: pos.y },
+            })
+          }
         }
-      }
-    })
-    ch.on('broadcast', { event: 'quiz-next' }, () => {
-      setQuizReveal(null)
-    })
-    ch.subscribe()
-    return () => supabase.removeChannel(ch)
-  }, [roomId, playerId])
+      })
+      ch.on('broadcast', { event: 'quiz-next' }, () => {
+        setQuizReveal(null)
+      })
+      ch.subscribe((status) => {
+        if (destroyed) return
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // Tear down and retry after a short delay
+          supabase.removeChannel(ch)
+          setTimeout(() => { if (!destroyed) createChannel() }, 1000)
+        }
+      })
+    }
+
+    createChannel()
+    return () => {
+      destroyed = true
+      if (ch) supabase.removeChannel(ch)
+    }
+  }, [roomId])
 
   const { room, loading: roomLoading, refetch: refetchRoom } = useRoom(roomId)
   const { players, refetch: refetchPlayers } = usePlayers(roomId)

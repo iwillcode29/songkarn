@@ -45,8 +45,13 @@ export function useRoom(roomId) {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') fetchRoom()
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // Channel died — poll faster until next successful subscribe
+          fetchRoom()
+        }
       })
 
+    // Polling fallback — 3s keeps state fresh if realtime silently fails
     const interval = setInterval(fetchRoom, 3000)
 
     return () => {
