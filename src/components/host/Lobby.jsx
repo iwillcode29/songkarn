@@ -76,7 +76,7 @@ export default function Lobby({ room, players, onClearRoom }) {
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold" style={{ color: 'var(--gold-400)' }}>
-                สแกนเพื่อเข้าร่วม
+                Scan to Join
               </p>
               <button
                 onClick={async () => {
@@ -146,7 +146,7 @@ export default function Lobby({ room, players, onClearRoom }) {
           >
             <div className="flex items-baseline justify-between">
               <h2 className="text-xl font-bold" style={{ color: 'var(--cream-100)' }}>
-                ผู้เล่น — Players
+                Players
               </h2>
               <span className="text-sm font-bold tabular-nums sk-gold-text">
                 {players.length} joined
@@ -203,7 +203,7 @@ export default function Lobby({ room, players, onClearRoom }) {
               {starting
                 ? 'Starting...'
                 : canStart
-                ? 'เริ่มการแข่งขัน — Start Tournament'
+                ? 'Start Tournament'
                 : 'Need at least 2 players'}
             </motion.button>
 

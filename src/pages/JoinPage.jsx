@@ -90,7 +90,7 @@ export default function JoinPage() {
 
   // ── Rendering ────────────────────────────────────────────────
 
-  if (phase === 'loading') return <FullScreenMessage emoji="⏳" text="กำลังโหลด…" />
+  if (phase === 'loading') return <FullScreenMessage emoji="⏳" text="Loading…" />
   if (phase === 'invalid') {
     return (
       <FullScreenMessage
@@ -139,8 +139,7 @@ export default function JoinPage() {
                   ? myCurrentMatch?.p1_choice
                   : myCurrentMatch?.p2_choice
               ]?.emoji ?? '❓'}
-              title="ล็อคแล้ว!"
-              titleEn="Locked in!"
+              title="Locked in!"
               subtitle="Waiting for the reveal…"
               sub2={<PulseDot text="Watching the host screen!" />}
             />
@@ -159,7 +158,7 @@ export default function JoinPage() {
               className="text-center font-semibold text-xs mb-2"
               style={{ color: 'rgba(232,184,74,0.6)' }}
             >
-              {isTouchDevice ? 'เดินเล่นระหว่างรอ!' : 'Use W A S D to walk around!'}
+              {isTouchDevice ? 'Walk around while waiting!' : 'Use W A S D to walk around!'}
             </p>
             <Arena
               roomId={roomId}
@@ -194,7 +193,7 @@ export default function JoinPage() {
           <PhaseWrapper key="won">
             <StatusCard
               emoji="🎉"
-              title="ชนะ! — You Won!"
+              title="You Won!"
               subtitle="Well played! Get ready for the next round."
               sub2={<PulseDot text="Waiting for others to finish…" />}
               accentColor="var(--water-300)"
@@ -206,7 +205,7 @@ export default function JoinPage() {
           <PhaseWrapper key="draw">
             <StatusCard
               emoji="⚡"
-              title="เสมอ! — It's a Draw!"
+              title="It's a Draw!"
               subtitle="Sudden death rematch incoming…"
               sub2={<PulseDot text="Get ready to pick again!" />}
               accentColor="var(--gold-400)"
@@ -226,7 +225,7 @@ export default function JoinPage() {
               </motion.div>
               <div className="space-y-2">
                 <p className="text-3xl font-black" style={{ color: 'var(--cream-50)' }}>
-                  โดนสาดน้ำ! 💦
+                  You got splashed! 💦
                 </p>
                 <p className="text-lg font-body" style={{ color: 'var(--cream-400)' }}>
                   Better luck next Songkran!

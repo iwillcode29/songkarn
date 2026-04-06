@@ -83,7 +83,7 @@ export default function CreateRoom({ onRoomCreated }) {
             className="text-sm font-light tracking-[0.3em] uppercase"
             style={{ color: 'var(--gold-400)' }}
           >
-            สงกรานต์ ทัวร์นาเมนต์
+            Songkran Tournament
           </p>
           <h1
             className="text-6xl lg:text-7xl font-black tracking-tight leading-[0.9]"
@@ -143,7 +143,7 @@ export default function CreateRoom({ onRoomCreated }) {
             }}
           />
           <span className="relative">
-            {loading ? 'กำลังสร้าง...' : 'สร้างห้อง — Create Room'}
+            {loading ? 'Creating...' : 'Create Room'}
           </span>
         </motion.button>
 

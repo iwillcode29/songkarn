@@ -75,7 +75,7 @@ export default function MobileChampionScreen({ player }) {
             {player?.name}
           </p>
           <p className="text-lg font-bold" style={{ color: 'var(--cream-100)' }}>
-            คุณคือ
+            YOU ARE THE
           </p>
           <p
             className="font-black text-3xl leading-tight"

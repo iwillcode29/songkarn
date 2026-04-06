@@ -67,7 +67,7 @@ export default function JoinForm({ roomId, onJoined }) {
 
         <div className="space-y-2">
           <h1 className="text-4xl font-black" style={{ color: 'var(--cream-50)' }}>
-            เข้าร่วมการต่อสู้!
+            Join the Battle!
           </h1>
           <p className="font-body text-sm" style={{ color: 'var(--cream-400)' }}>
             Room <span className="font-bold sk-gold-text">{roomId}</span>
@@ -79,7 +79,7 @@ export default function JoinForm({ roomId, onJoined }) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="ใส่ชื่อของคุณ — Enter your name"
+            placeholder="Enter your name"
             maxLength={20}
             autoFocus
             className="w-full px-5 py-4 rounded-2xl text-lg font-semibold placeholder:text-sm focus:outline-none transition-all"
@@ -132,7 +132,7 @@ export default function JoinForm({ roomId, onJoined }) {
               color: 'rgba(245,237,224,0.2)',
             }}
           >
-            {loading ? 'กำลังเข้าร่วม...' : 'ไปเลย! — Let\'s Go!'}
+            {loading ? 'Joining...' : "Let's Go!"}
           </motion.button>
 
           {error && (

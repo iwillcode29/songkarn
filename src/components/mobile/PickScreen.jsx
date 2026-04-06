@@ -58,7 +58,7 @@ export default function PickScreen({ match, playerId, player }) {
           >
             <div className="space-y-1">
               <h2 className="text-3xl font-black" style={{ color: 'var(--cream-50)' }}>
-                เลือกอาวุธ!
+                Pick Your Weapon!
               </h2>
               <p className="font-body text-sm" style={{ color: 'var(--cream-400)' }}>
                 Tap to lock in your choice
@@ -117,7 +117,7 @@ export default function PickScreen({ match, playerId, player }) {
               <p className="font-black text-3xl" style={{ color: 'var(--cream-50)' }}>
                 {WEAPONS[locked]?.label}
               </p>
-              <p className="text-lg" style={{ color: 'var(--gold-400)' }}>ล็อคแล้ว! ✅</p>
+              <p className="text-lg" style={{ color: 'var(--gold-400)' }}>Locked in! ✅</p>
             </div>
             <div className="flex items-center gap-2 justify-center">
               <span className="animate-pulse text-xs" style={{ color: 'var(--water-400)' }}>●</span>

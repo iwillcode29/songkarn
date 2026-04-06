@@ -65,7 +65,7 @@ export default function HostChampionScreen({ champion, onPlayAgain }) {
             className="font-bold text-xl uppercase tracking-[0.2em]"
             style={{ color: 'var(--gold-400)' }}
           >
-            แชมป์
+            Champion
           </p>
           <h1
             className="text-7xl font-black leading-none"
@@ -107,7 +107,7 @@ export default function HostChampionScreen({ champion, onPlayAgain }) {
             border: '1px solid rgba(232,184,74,0.2)',
           }}
         >
-          เล่นอีกครั้ง — Play Again
+          Play Again
         </motion.button>
       </motion.div>
     </div>
