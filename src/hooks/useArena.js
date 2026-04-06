@@ -23,18 +23,23 @@ const LERP_SPEED = 18 // higher = snappier interpolation
  * room alive across Arena remounts (lobby → quiz) so there's zero reconnect
  * gap and broadcasts flow continuously.
  */
-const arenaChannels = new Map() // roomId → { channel, refCount, listenersAttached }
+const arenaChannels = new Map() // roomId → { channel, refCount, listenersAttached, destroyTimer }
 
 function acquireArenaChannel(roomId) {
   const existing = arenaChannels.get(roomId)
   if (existing && existing.channel.state !== 'closed') {
     existing.refCount++
+    // Cancel pending destroy if Arena remounts quickly (lobby → quiz)
+    if (existing.destroyTimer) {
+      clearTimeout(existing.destroyTimer)
+      existing.destroyTimer = null
+    }
     return existing.channel
   }
   const channel = supabase.channel(`arena:${roomId}`, {
     config: { broadcast: { self: false } },
   })
-  arenaChannels.set(roomId, { channel, refCount: 1, listenersAttached: false })
+  arenaChannels.set(roomId, { channel, refCount: 1, listenersAttached: false, destroyTimer: null })
   return channel
 }
 
@@ -43,9 +48,17 @@ function releaseArenaChannel(roomId) {
   if (!entry) return
   entry.refCount--
   if (entry.refCount <= 0) {
-    entry.channel.untrack()
-    supabase.removeChannel(entry.channel)
-    arenaChannels.delete(roomId)
+    // Delay destroy by 1s so lobby→quiz remount can reuse the same channel.
+    // React unmounts old Arena before mounting new one — without this delay
+    // the channel would be destroyed in the gap between unmount and mount.
+    entry.destroyTimer = setTimeout(() => {
+      const current = arenaChannels.get(roomId)
+      if (current && current.refCount <= 0) {
+        current.channel.untrack()
+        supabase.removeChannel(current.channel)
+        arenaChannels.delete(roomId)
+      }
+    }, 1000)
   }
 }
 
