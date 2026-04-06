@@ -23,7 +23,24 @@ const LERP_SPEED = 18 // higher = snappier interpolation
  * room alive across Arena remounts (lobby → quiz) so there's zero reconnect
  * gap and broadcasts flow continuously.
  */
-const arenaChannels = new Map() // roomId → { channel, refCount, listenersAttached, destroyTimer }
+const arenaChannels = new Map() // roomId → { channel, refCount, listenersAttached, destroyTimer, refs }
+
+/**
+ * Shared mutable refs that survive Arena remounts (lobby → quiz).
+ * Broadcast listeners write into these; the RAF loop reads from them.
+ */
+function createSharedRefs() {
+  return {
+    positions: new Map(),
+    targets: new Map(),
+    hp: new Map(),
+    projectiles: [],
+    hitSignals: new Map(),
+    eliminationSignal: { time: 0 },
+    initialised: new Set(),
+    online: new Set(),
+  }
+}
 
 function acquireArenaChannel(roomId) {
   const existing = arenaChannels.get(roomId)
@@ -39,7 +56,7 @@ function acquireArenaChannel(roomId) {
   const channel = supabase.channel(`arena:${roomId}`, {
     config: { broadcast: { self: false } },
   })
-  arenaChannels.set(roomId, { channel, refCount: 1, listenersAttached: false, destroyTimer: null })
+  arenaChannels.set(roomId, { channel, refCount: 1, listenersAttached: false, destroyTimer: null, refs: createSharedRefs() })
   return channel
 }
 
@@ -83,19 +100,33 @@ function lerp(a, b, t) {
  * @returns {{ positionsRef: React.MutableRefObject<Map>, connectedRef: React.MutableRefObject<boolean> }}
  */
 export function useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit }) {
-  // Rendered positions — what Arena reads every frame
-  const positionsRef = useRef(new Map())
-  // Target positions for remote players — set by Broadcast, lerped toward in RAF
-  const targetsRef = useRef(new Map())
-  // HP for each player (seeded at MAX_HP on spawn)
-  const hpRef = useRef(new Map())
-  // Active projectiles (all clients track all projectiles locally)
-  const projectilesRef = useRef([])
+  // Shared refs survive Arena remounts (lobby → quiz) via the module-level
+  // channel cache, so broadcast listeners always write to the same Maps that
+  // the current RAF loop reads from.
+  const entry = arenaChannels.get(roomId)
+  const shared = entry?.refs ?? createSharedRefs()
+
+  const positionsRef = useRef(shared.positions)
+  const targetsRef = useRef(shared.targets)
+  const hpRef = useRef(shared.hp)
+  const projectilesRef = useRef(shared.projectiles)
+  const hitSignalsRef = useRef(shared.hitSignals)
+  const eliminationSignalRef = useRef(shared.eliminationSignal)
+  const initialisedRef = useRef(shared.initialised)
+  const onlineRef = useRef(shared.online)
+
+  // Keep refs pointing to the shared objects (handles hot-path where entry
+  // exists before first render but ref.current was initialised with a stale copy)
+  positionsRef.current = shared.positions
+  targetsRef.current = shared.targets
+  hpRef.current = shared.hp
+  projectilesRef.current = shared.projectiles
+  hitSignalsRef.current = shared.hitSignals
+  eliminationSignalRef.current = shared.eliminationSignal
+  initialisedRef.current = shared.initialised
+  onlineRef.current = shared.online
+
   const projSeqRef = useRef(0)
-  // Hit signals for visual feedback — Map<playerId, { time, x, y }>
-  const hitSignalsRef = useRef(new Map())
-  // Elimination signal for host screen shake — { time }
-  const eliminationSignalRef = useRef({ time: 0 })
 
   const [, forceRender] = useReducer((x) => x + 1, 0)
   const channelRef = useRef(null)
@@ -104,9 +135,6 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   const lastBroadcastRef = useRef(0)
   const seqRef = useRef(0)
   const connectedRef = useRef(false)
-
-  const initialisedRef = useRef(new Set())
-  const onlineRef = useRef(new Set())
 
   const frozenRef = useRef(frozen)
   frozenRef.current = frozen
@@ -150,26 +178,31 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
     // Attach broadcast listeners ONLY ONCE per channel lifetime to prevent
     // duplicate handlers stacking up on Arena remount (lobby → quiz).
     // Handlers use refs to access current values (playerId, onSelfHit).
+    // Attach broadcast listeners ONLY ONCE per channel lifetime.
+    // Listeners read from entry.refs (the shared objects) so they stay
+    // valid across Arena remounts — no stale closure refs.
     if (entry && !entry.listenersAttached) {
       entry.listenersAttached = true
+      const r = entry.refs
       channel
         .on('broadcast', { event: PROJ_EVENT }, ({ payload }) => {
           if (!payload) return
-          projectilesRef.current.push(payload)
+          r.projectiles.push(payload)
         })
         .on('broadcast', { event: DMG_EVENT }, ({ payload }) => {
           if (!payload) return
-          const cur = hpRef.current.get(payload.targetId) ?? MAX_HP
+          const cur = r.hp.get(payload.targetId) ?? MAX_HP
           const newHp = Math.max(0, cur - 1)
-          hpRef.current.set(payload.targetId, newHp)
+          r.hp.set(payload.targetId, newHp)
           // Hit signal for flash + splash
-          const pos = positionsRef.current.get(payload.targetId)
+          const pos = r.positions.get(payload.targetId)
           if (pos) {
-            hitSignalsRef.current.set(payload.targetId, { time: performance.now(), x: pos.x, y: pos.y })
+            r.hitSignals.set(payload.targetId, { time: performance.now(), x: pos.x, y: pos.y })
           }
-          // Elimination signal for host screen shake
+          // Elimination signal for host screen shake — mutate in place so
+          // the ref.current pointer stays valid between renders
           if (newHp === 0) {
-            eliminationSignalRef.current = { time: performance.now() }
+            r.eliminationSignal.time = performance.now()
           }
           // Self-hit feedback (vibrate + screen shake on mobile)
           if (payload.targetId === playerIdRef.current) {
@@ -179,10 +212,10 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
         })
         .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
           if (!payload) return
-          const prev = targetsRef.current.get(payload.playerId)
+          const prev = r.targets.get(payload.playerId)
           if (prev && payload.seq <= (prev._seq ?? 0)) return
 
-          targetsRef.current.set(payload.playerId, {
+          r.targets.set(payload.playerId, {
             x: payload.x,
             y: payload.y,
             facing: payload.facing,
@@ -213,7 +246,8 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
               leftIds.push(id)
             }
           }
-          onlineRef.current = nowOnline
+          onlineRef.current.clear()
+          for (const id of nowOnline) onlineRef.current.add(id)
 
           if (!playerId && leftIds.length > 0) {
             setTimeout(() => {
@@ -331,7 +365,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
               hpRef.current.set(hitId, newHp)
               // Hit signal for flash + splash (shooter sees it immediately)
               hitSignalsRef.current.set(hitId, { time: performance.now(), x: moved.x, y: moved.y })
-              if (newHp === 0) eliminationSignalRef.current = { time: performance.now() }
+              if (newHp === 0) eliminationSignalRef.current.time = performance.now()
               channelRef.current?.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
               continue // projectile consumed on hit
             }
@@ -339,7 +373,10 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
 
           surviving.push(moved)
         }
-        projectilesRef.current = surviving
+        // Mutate the shared array in place so the broadcast listener's
+        // reference (r.projectiles) stays valid.
+        projectilesRef.current.length = 0
+        projectilesRef.current.push(...surviving)
       }
 
       // 4. Broadcast own position at ~30 Hz
