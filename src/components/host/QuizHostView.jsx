@@ -17,10 +17,16 @@ import QuizZones from '../arena/QuizZones'
 export default function QuizHostView({ room, players }) {
   const arenaRef = useRef(new Map())
   const channelRef = useRef(null)
+  const reportedPositionsRef = useRef(new Map()) // positions reported by mobile clients on reveal
 
   // Quiz broadcast channel — host sends reveal/next events to mobile clients
   useEffect(() => {
     const ch = supabase.channel(`quiz:${room.id}`, { config: { broadcast: { self: false } } })
+    ch.on('broadcast', { event: 'quiz-pos' }, ({ payload }) => {
+      if (payload?.playerId) {
+        reportedPositionsRef.current.set(payload.playerId, { x: payload.x, y: payload.y })
+      }
+    })
     ch.subscribe()
     channelRef.current = ch
     return () => { supabase.removeChannel(ch); channelRef.current = null }
@@ -42,27 +48,27 @@ export default function QuizHostView({ room, players }) {
     setIsRevealing(true)
 
     const correctAnswer = question.correct
-
-    // Snapshot positions and alive players NOW — before showing the answer
-    // This prevents cheating (moving after seeing answer) and avoids stale closures
-    const posSnapshot = new Map(arenaRef.current)
     const aliveSnapshot = [...alivePlayers]
 
-    // Show the correct answer on screen and broadcast to mobile clients
+    // Clear previously reported positions and broadcast reveal to mobile clients.
+    // Each mobile client will respond with their exact position (quiz-pos event).
+    reportedPositionsRef.current.clear()
     setRevealedAnswer(correctAnswer)
     channelRef.current?.send({
       type: 'broadcast', event: 'quiz-reveal',
       payload: { correct: correctAnswer, round: room.current_round },
     })
 
-    // Wait for animation
+    // Wait for mobile clients to report their positions + animation time
     await new Promise((r) => setTimeout(r, 2000))
 
-    // Determine who is wrong using the snapshots
+    // Use positions reported by mobile clients (exact, no lag).
+    // Fall back to host's broadcast-target positions if a client didn't report.
+    const hostSnapshot = new Map(arenaRef.current)
     const eliminatedIds = []
 
     for (const p of aliveSnapshot) {
-      const pos = posSnapshot.get(p.id)
+      const pos = reportedPositionsRef.current.get(p.id) ?? hostSnapshot.get(p.id)
       if (!pos) {
         eliminatedIds.push(p.id)
         continue
@@ -101,6 +107,7 @@ export default function QuizHostView({ room, players }) {
     if (!error) {
       setRevealedAnswer(null)
       setRevealStats(null)
+      reportedPositionsRef.current.clear()
       channelRef.current?.send({
         type: 'broadcast', event: 'quiz-next',
         payload: { round: room.current_round + 1 },

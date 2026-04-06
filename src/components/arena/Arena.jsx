@@ -9,16 +9,21 @@ import Character from './Character'
  * Scales the logical world (800×450) to fit any container.
  * All scenery uses crisp SVG pixel art — no emoji.
  */
-export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, frozen }) {
+export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, selfPositionRef, frozen }) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
   const { positionsRef, targetsRef, hpRef, projectilesRef } = useArena({ roomId, playerId, players, joystickRef, frozen })
 
   useEffect(() => {
-    // Expose broadcast targets (not lerped positions) so host quiz detection
-    // uses the actual position the mobile client reported.
-    if (positionsMapRef) positionsMapRef.current = targetsRef.current
+    if (positionsMapRef) positionsMapRef.current = positionsRef.current
+  })
+
+  // Expose own player's position so parent can read it (e.g. for quiz zone report)
+  useEffect(() => {
+    if (selfPositionRef && playerId) {
+      selfPositionRef.current = positionsRef.current.get(playerId) ?? null
+    }
   })
 
   useEffect(() => {

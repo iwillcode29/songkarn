@@ -47,18 +47,31 @@ export default function JoinPage() {
   // Quiz reveal state — set by host broadcast
   const [quizReveal, setQuizReveal] = useState(null) // 'a'|'b'|'c'|'d' or null
 
+  const myPositionRef = useRef(null) // Arena writes player's own position here
+
   useEffect(() => {
     if (!roomId) return
     const ch = supabase.channel(`quiz:${roomId}`, { config: { broadcast: { self: false } } })
     ch.on('broadcast', { event: 'quiz-reveal' }, ({ payload }) => {
-      if (payload?.correct) setQuizReveal(payload.correct)
+      if (payload?.correct) {
+        setQuizReveal(payload.correct)
+        // Report own position back to host so zone detection uses the exact
+        // coordinates the player sees on their screen (no broadcast lag).
+        if (playerId && myPositionRef.current) {
+          const pos = myPositionRef.current
+          ch.send({
+            type: 'broadcast', event: 'quiz-pos',
+            payload: { playerId, x: pos.x, y: pos.y },
+          })
+        }
+      }
     })
     ch.on('broadcast', { event: 'quiz-next' }, () => {
       setQuizReveal(null)
     })
     ch.subscribe()
     return () => supabase.removeChannel(ch)
-  }, [roomId])
+  }, [roomId, playerId])
 
   const { room, loading: roomLoading } = useRoom(roomId)
   const { players } = usePlayers(roomId)
@@ -207,6 +220,7 @@ export default function JoinPage() {
               players={players.filter((p) => p.is_alive)}
               joystickRef={joystickRef}
               quizOverlay={quizOverlay}
+              selfPositionRef={myPositionRef}
               frozen={!!quizReveal}
             />
           </div>
