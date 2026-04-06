@@ -129,7 +129,7 @@ export default function JoinPage() {
             key={questionIndex}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-sm mb-3"
+            className="w-full max-w-sm mb-2 flex-shrink-0"
           >
             <p className="text-xs font-body mb-1" style={{ color: 'var(--cream-400)' }}>
               Question {room.current_round} / {QUIZ_QUESTIONS.length}
@@ -162,23 +162,27 @@ export default function JoinPage() {
           </motion.div>
         )}
 
-        {/* Arena with zones */}
-        <Arena
-          roomId={roomId}
-          playerId={playerId}
-          players={players.filter((p) => p.is_alive)}
-          joystickRef={joystickRef}
-          quizOverlay={quizOverlay}
-        />
+        {/* Arena with zones — flex-1 + min-h-0 lets it fill remaining space without overflow */}
+        <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+          <div style={{ width: '100%', maxWidth: 'calc((100dvh - 200px) * 800 / 450)' }}>
+            <Arena
+              roomId={roomId}
+              playerId={playerId}
+              players={players.filter((p) => p.is_alive)}
+              joystickRef={joystickRef}
+              quizOverlay={quizOverlay}
+            />
+          </div>
+        </div>
 
         {/* Controls */}
         {isTouchDevice && (
-          <div className="flex items-center justify-center gap-10 mt-2">
+          <div className="flex items-center justify-center gap-10 mt-1 flex-shrink-0">
             <Joystick inputRef={joystickRef} />
           </div>
         )}
 
-        <p className="text-center mt-2 text-xs font-body" style={{ color: 'var(--cream-400)' }}>
+        <p className="text-center mt-1 text-xs font-body flex-shrink-0" style={{ color: 'var(--cream-400)' }}>
           {isTouchDevice ? 'Run to your answer zone!' : 'Use W A S D to move to your answer!'}
         </p>
       </div>
