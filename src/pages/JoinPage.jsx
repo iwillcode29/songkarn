@@ -132,6 +132,7 @@ export default function JoinPage() {
   }, [matches, room, playerId])
 
   const isQuiz = room?.game_mode === 'quiz'
+  const questions = useMemo(() => roomId ? getQuizQuestions(roomId) : [], [roomId])
 
   // Unlock SFX on first touch interaction (JoinForm submit)
   useEffect(() => {
@@ -210,7 +211,6 @@ export default function JoinPage() {
   // No unmount/remount = no channel reconnect.
   const showArena = phase === 'lobby_wait' || phase === 'quiz_playing'
 
-  const questions = useMemo(() => roomId ? getQuizQuestions(roomId) : [], [roomId])
   const questionIndex = (room?.current_round ?? 1) - 1
   const question = isQuiz ? (questions[questionIndex] ?? null) : null
   const quizOverlay = phase === 'quiz_playing' ? <QuizZones question={question} revealedAnswer={quizReveal} /> : null
