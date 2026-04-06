@@ -41,9 +41,16 @@ export function useMatches(roomId) {
         },
         fetchMatches,
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchMatches()
+      })
 
-    return () => supabase.removeChannel(channel)
+    const interval = setInterval(fetchMatches, 3000)
+
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [roomId, fetchMatches])
 
   return { matches, loading, refetch: fetchMatches }

@@ -41,9 +41,20 @@ export function usePlayers(roomId) {
         },
         fetchPlayers, // re-fetch to keep full sorted list in sync
       )
-      .subscribe()
+      .subscribe((status) => {
+        // Re-fetch once subscribed so we don't miss events that fired
+        // between the initial fetch and the subscription being ready.
+        if (status === 'SUBSCRIBED') fetchPlayers()
+      })
 
-    return () => supabase.removeChannel(channel)
+    // Polling fallback — realtime postgres_changes can silently fail
+    // if table replication is misconfigured; poll every 3s as safety net.
+    const interval = setInterval(fetchPlayers, 3000)
+
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [roomId, fetchPlayers])
 
   return { players, loading, refetch: fetchPlayers }

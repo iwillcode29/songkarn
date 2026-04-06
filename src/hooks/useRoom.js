@@ -43,9 +43,16 @@ export function useRoom(roomId) {
         // may return a partial object when REPLICA IDENTITY is not set to FULL.
         () => fetchRoom(),
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') fetchRoom()
+      })
 
-    return () => supabase.removeChannel(channel)
+    const interval = setInterval(fetchRoom, 3000)
+
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [roomId, fetchRoom])
 
   return { room, loading, refetch: fetchRoom }
