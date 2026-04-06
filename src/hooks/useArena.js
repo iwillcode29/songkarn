@@ -345,7 +345,9 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
           }
           projectilesRef.current.push(proj)
           sfx.shoot()
-          channelRef.current?.send({ type: 'broadcast', event: PROJ_EVENT, payload: proj })
+          if (connectedRef.current) {
+            channelRef.current?.send({ type: 'broadcast', event: PROJ_EVENT, payload: proj })
+          }
         }
       }
 
@@ -366,7 +368,9 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
               // Hit signal for flash + splash (shooter sees it immediately)
               hitSignalsRef.current.set(hitId, { time: performance.now(), x: moved.x, y: moved.y })
               if (newHp === 0) eliminationSignalRef.current.time = performance.now()
-              channelRef.current?.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
+              if (connectedRef.current) {
+                channelRef.current?.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
+              }
               continue // projectile consumed on hit
             }
           }
