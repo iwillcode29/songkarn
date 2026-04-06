@@ -6,54 +6,68 @@ import { createBracketPairs } from '../../lib/gameLogic'
 import Arena from '../arena/Arena'
 import { LaiThaiDivider, CornerOrnament } from '../ThaiDecor'
 
+const GAME_MODES = [
+  {
+    id: 'bracket',
+    emoji: '🔫',
+    title: 'Battle',
+    desc: 'Rock-Paper-Scissors bracket',
+    minPlayers: 2,
+  },
+  {
+    id: 'quiz',
+    emoji: '❓',
+    title: 'Quiz',
+    desc: '10 questions — run to the zone!',
+    minPlayers: 1,
+  },
+]
+
 export default function Lobby({ room, players, onClearRoom }) {
   const [starting, setStarting] = useState(false)
   const [clearing, setClearing] = useState(false)
   const joinUrl = `${window.location.origin}/join/${room.id}`
-  const canStart = room.game_mode === 'quiz' ? players.length >= 1 : players.length >= 2
 
-  async function handleStartGame() {
-    if (!canStart || starting) return
+  async function handleStartGame(mode) {
+    const minPlayers = GAME_MODES.find((m) => m.id === mode)?.minPlayers ?? 2
+    if (players.length < minPlayers || starting) return
     setStarting(true)
 
-    // Quiz mode: just flip to playing (no bracket creation)
-    if (room.game_mode === 'quiz') {
+    try {
+      // Quiz mode: set game_mode and flip to playing
+      if (mode === 'quiz') {
+        const { error: roomError } = await supabase
+          .from('rooms')
+          .update({ status: 'playing', game_mode: mode })
+          .eq('id', room.id)
+        if (roomError) console.error('Failed to start game:', roomError)
+        return
+      }
+
+      // Bracket mode: create match pairs, then set game_mode + status
+      const pairs = createBracketPairs(players)
+      const matchInserts = pairs.map((pair) => ({
+        room_id: room.id,
+        round_number: 1,
+        player1_id: pair.player1_id,
+        player2_id: pair.player2_id,
+        is_bye: pair.is_bye,
+        status: pair.is_bye ? 'resolved' : 'waiting',
+        winner_id: pair.is_bye ? pair.player1_id : null,
+      }))
+
+      const { error: matchError } = await supabase.from('matches').insert(matchInserts)
+      if (matchError) {
+        console.error('Failed to create matches:', matchError)
+        return
+      }
+
       const { error: roomError } = await supabase
         .from('rooms')
-        .update({ status: 'playing' })
+        .update({ status: 'playing', game_mode: mode })
         .eq('id', room.id)
-      if (roomError) {
-        console.error('Failed to start game:', roomError)
-      }
-      setStarting(false)
-      return
-    }
-
-    // Bracket mode: create match pairs
-    const pairs = createBracketPairs(players)
-    const matchInserts = pairs.map((pair) => ({
-      room_id: room.id,
-      round_number: 1,
-      player1_id: pair.player1_id,
-      player2_id: pair.player2_id,
-      is_bye: pair.is_bye,
-      status: pair.is_bye ? 'resolved' : 'waiting',
-      winner_id: pair.is_bye ? pair.player1_id : null,
-    }))
-
-    const { error: matchError } = await supabase.from('matches').insert(matchInserts)
-    if (matchError) {
-      console.error('Failed to create matches:', matchError)
-      setStarting(false)
-      return
-    }
-
-    const { error: roomError } = await supabase
-      .from('rooms')
-      .update({ status: 'playing' })
-      .eq('id', room.id)
-    if (roomError) {
-      console.error('Failed to start game:', roomError)
+      if (roomError) console.error('Failed to start game:', roomError)
+    } finally {
       setStarting(false)
     }
   }
@@ -73,14 +87,9 @@ export default function Lobby({ room, players, onClearRoom }) {
           className="flex items-baseline gap-3"
         >
           <h1 className="text-3xl lg:text-4xl font-black sk-gold-text">
-            Songkran {room.game_mode === 'quiz' ? 'Quiz' : 'Tournament'}
+            Songkran Lobby
           </h1>
           <WaterIcon />
-          {room.game_mode === 'quiz' && (
-            <span className="text-sm font-body ml-1" style={{ color: 'var(--water-400)' }}>
-              10 Questions
-            </span>
-          )}
         </motion.div>
 
         {/* Top row: QR + Players + Start */}
@@ -203,28 +212,41 @@ export default function Lobby({ room, players, onClearRoom }) {
               )}
             </div>
 
-            <motion.button
-              whileHover={canStart ? { scale: 1.02 } : {}}
-              whileTap={canStart ? { scale: 0.98 } : {}}
-              onClick={handleStartGame}
-              disabled={!canStart || starting}
-              className="w-full py-3.5 font-bold text-lg rounded-xl transition-all"
-              style={canStart && !starting ? {
-                background: 'linear-gradient(135deg, var(--gold-500), var(--gold-600))',
-                color: 'var(--twilight-950)',
-                boxShadow: '0 4px 16px rgba(212,152,43,0.2)',
-              } : {
-                background: 'rgba(255,255,255,0.04)',
-                color: 'rgba(245,237,224,0.25)',
-                cursor: 'not-allowed',
-              }}
-            >
-              {starting
-                ? 'Starting...'
-                : canStart
-                ? room.game_mode === 'quiz' ? 'Start Quiz' : 'Start Tournament'
-                : room.game_mode === 'quiz' ? 'Need at least 1 player' : 'Need at least 2 players'}
-            </motion.button>
+            <p className="text-xs font-semibold" style={{ color: 'var(--gold-400)' }}>
+              Choose a game to start
+            </p>
+            <div className="flex gap-2">
+              {GAME_MODES.map((m) => {
+                const canStart = players.length >= m.minPlayers
+                return (
+                  <motion.button
+                    key={m.id}
+                    whileHover={canStart ? { scale: 1.02 } : {}}
+                    whileTap={canStart ? { scale: 0.98 } : {}}
+                    onClick={() => handleStartGame(m.id)}
+                    disabled={!canStart || starting}
+                    className="flex-1 py-3 rounded-xl transition-all text-center"
+                    style={canStart && !starting ? {
+                      background: 'linear-gradient(135deg, var(--gold-500), var(--gold-600))',
+                      color: 'var(--twilight-950)',
+                      boxShadow: '0 4px 16px rgba(212,152,43,0.2)',
+                    } : {
+                      background: 'rgba(255,255,255,0.04)',
+                      color: 'rgba(245,237,224,0.25)',
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    <div className="text-2xl mb-0.5">{m.emoji}</div>
+                    <div className="font-bold text-sm">
+                      {starting ? 'Starting...' : m.title}
+                    </div>
+                    <div className="text-xs mt-0.5 opacity-70">
+                      {canStart ? m.desc : `Need ${m.minPlayers}+ players`}
+                    </div>
+                  </motion.button>
+                )
+              })}
+            </div>
 
             <LaiThaiDivider className="mx-auto mt-2 opacity-30" />
           </motion.div>

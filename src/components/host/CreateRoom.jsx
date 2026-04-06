@@ -4,25 +4,9 @@ import { supabase } from '../../lib/supabase'
 import { generateRoomCode } from '../../lib/gameLogic'
 import { LaiThaiDivider, WaterDrops, CornerOrnament } from '../ThaiDecor'
 
-const MODES = [
-  {
-    id: 'bracket',
-    emoji: '🔫',
-    title: 'Battle',
-    desc: 'Rock-Paper-Scissors bracket tournament',
-  },
-  {
-    id: 'quiz',
-    emoji: '❓',
-    title: 'Quiz',
-    desc: '10 questions — run to the right zone!',
-  },
-]
-
 export default function CreateRoom({ onRoomCreated }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [mode, setMode] = useState('bracket')
 
   async function handleCreate() {
     setLoading(true)
@@ -31,7 +15,7 @@ export default function CreateRoom({ onRoomCreated }) {
 
     const { error: dbError } = await supabase
       .from('rooms')
-      .insert({ id: code, status: 'lobby', current_round: 1, game_mode: mode })
+      .insert({ id: code, status: 'lobby', current_round: 1 })
 
     if (dbError) {
       setError('Could not create room. Check your Supabase config.')
@@ -106,43 +90,6 @@ export default function CreateRoom({ onRoomCreated }) {
           <LaiThaiDivider className="mx-auto mb-6" />
         </motion.div>
 
-        {/* Game mode picker */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="flex gap-3 justify-center mb-8"
-        >
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setMode(m.id)}
-              className="flex-1 max-w-[180px] rounded-xl py-4 px-4 text-center transition-all"
-              style={mode === m.id ? {
-                background: 'rgba(232,184,74,0.12)',
-                border: '2px solid rgba(232,184,74,0.4)',
-              } : {
-                background: 'rgba(255,255,255,0.03)',
-                border: '2px solid rgba(255,255,255,0.06)',
-              }}
-            >
-              <div className="text-3xl mb-1">{m.emoji}</div>
-              <div
-                className="font-bold text-sm"
-                style={{ color: mode === m.id ? 'var(--gold-400)' : 'var(--cream-200)' }}
-              >
-                {m.title}
-              </div>
-              <div
-                className="text-xs font-body mt-1"
-                style={{ color: mode === m.id ? 'var(--cream-200)' : 'var(--cream-400)' }}
-              >
-                {m.desc}
-              </div>
-            </button>
-          ))}
-        </motion.div>
-
         {/* Create button */}
         <motion.button
           initial={{ opacity: 0, y: 10 }}
@@ -185,7 +132,7 @@ export default function CreateRoom({ onRoomCreated }) {
           className="mt-16 text-xs font-body"
           style={{ color: 'rgba(196, 168, 122, 0.35)' }}
         >
-          🔫 ☂️ ✂️
+          🎉 สงกรานต์ 🎉
         </motion.p>
       </motion.div>
     </div>

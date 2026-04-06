@@ -214,9 +214,21 @@ export default function HostPage() {
         champion={champion}
         champions={champions}
         isQuiz={room.game_mode === 'quiz'}
-        onPlayAgain={() => {
-          localStorage.removeItem('songkran_host_room')
-          setRoomId(null)
+        onPlayAgain={async () => {
+          if (isAdvancing) return
+          setIsAdvancing(true)
+          try {
+            await supabase.from('matches').delete().eq('room_id', room.id)
+            await supabase.from('players').update({ is_alive: true }).eq('room_id', room.id)
+            await supabase
+              .from('rooms')
+              .update({ status: 'lobby', current_round: 1 })
+              .eq('id', room.id)
+          } catch (err) {
+            console.error('Failed to reset room:', err)
+          } finally {
+            setIsAdvancing(false)
+          }
         }}
       />
     )

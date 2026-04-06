@@ -77,6 +77,11 @@ export default function JoinPage() {
   const { players } = usePlayers(roomId)
   const { matches } = useMatches(roomId)
 
+  // Clear stale quiz reveal when room resets to lobby (play again)
+  useEffect(() => {
+    if (room && room.status === 'lobby') setQuizReveal(null)
+  }, [room?.status])
+
   const myPlayer = useMemo(
     () => players.find((p) => p.id === playerId),
     [players, playerId],
