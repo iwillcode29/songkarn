@@ -15,7 +15,9 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
   const { positionsRef, hpRef, projectilesRef } = useArena({ roomId, playerId, players, joystickRef })
 
   // Expose positions to parent via mutable ref (for quiz zone detection)
-  if (positionsMapRef) positionsMapRef.current = positionsRef.current
+  useEffect(() => {
+    if (positionsMapRef) positionsMapRef.current = positionsRef.current
+  })
 
   useEffect(() => {
     const el = containerRef.current

@@ -33,8 +33,10 @@ export default function QuizHostView({ room, players }) {
 
     const correctAnswer = question.correct
 
-    // Snapshot positions NOW — before showing the answer
-    const snapshot = new Map(arenaRef.current)
+    // Snapshot positions and alive players NOW — before showing the answer
+    // This prevents cheating (moving after seeing answer) and avoids stale closures
+    const posSnapshot = new Map(arenaRef.current)
+    const aliveSnapshot = [...alivePlayers]
 
     // Show the correct answer on screen
     setRevealedAnswer(correctAnswer)
@@ -42,11 +44,11 @@ export default function QuizHostView({ room, players }) {
     // Wait for animation
     await new Promise((r) => setTimeout(r, 2000))
 
-    // Determine who is wrong using the snapshot
+    // Determine who is wrong using the snapshots
     const eliminatedIds = []
 
-    for (const p of alivePlayers) {
-      const pos = snapshot.get(p.id)
+    for (const p of aliveSnapshot) {
+      const pos = posSnapshot.get(p.id)
       if (!pos) {
         eliminatedIds.push(p.id)
         continue
@@ -62,7 +64,7 @@ export default function QuizHostView({ room, players }) {
       await supabase.from('players').update({ is_alive: false }).in('id', eliminatedIds)
     }
 
-    const survivorCount = alivePlayers.length - eliminatedIds.length
+    const survivorCount = aliveSnapshot.length - eliminatedIds.length
     setRevealStats({ survived: survivorCount, eliminated: eliminatedIds.length })
 
     // End game if no survivors or last question

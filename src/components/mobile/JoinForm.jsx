@@ -35,7 +35,7 @@ export default function JoinForm({ roomId, onJoined }) {
   }
 
   return (
-    <div className="sk-bg relative flex flex-col items-center justify-center px-6 overflow-hidden">
+    <div className="sk-bg-fixed relative flex flex-col items-center justify-center px-6">
       <WaterDrops count={8} />
 
       <motion.div

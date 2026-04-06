@@ -24,8 +24,8 @@ export default function Lobby({ room, players, onClearRoom }) {
         .eq('id', room.id)
       if (roomError) {
         console.error('Failed to start game:', roomError)
-        setStarting(false)
       }
+      setStarting(false)
       return
     }
 

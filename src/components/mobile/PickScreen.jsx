@@ -29,7 +29,7 @@ export default function PickScreen({ match, playerId, player }) {
   }
 
   return (
-    <div className="sk-bg flex flex-col items-center justify-center px-6 py-10">
+    <div className="sk-bg-fixed flex flex-col items-center justify-center px-6 py-6">
       {/* Player info */}
       <div className="flex items-center gap-3 mb-8 relative z-10">
         <img

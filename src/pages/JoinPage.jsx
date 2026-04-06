@@ -122,7 +122,7 @@ export default function JoinPage() {
     const quizOverlay = <QuizZones question={question} revealedAnswer={null} />
 
     return (
-      <div className="sk-bg flex flex-col items-center px-4 py-4">
+      <div className="sk-bg-fixed flex flex-col items-center px-4 py-3">
         {/* Question card (compact for mobile) */}
         {question && (
           <motion.div
@@ -186,7 +186,7 @@ export default function JoinPage() {
   }
 
   return (
-    <div className="sk-bg flex flex-col items-center justify-center px-5 py-8">
+    <div className="sk-bg-fixed flex flex-col items-center justify-center px-5 py-4">
       {/* Player badge */}
       {myPlayer && (
         <div className="flex items-center gap-3 mb-6 w-full max-w-sm">

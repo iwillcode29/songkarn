@@ -44,7 +44,7 @@ export default function CreateRoom({ onRoomCreated }) {
   }
 
   return (
-    <div className="sk-bg relative flex flex-col items-center justify-center px-6 overflow-hidden">
+    <div className="sk-bg-fixed relative flex flex-col items-center justify-center px-6">
       <WaterDrops count={15} />
 
       <div className="fixed top-4 left-4"><CornerOrnament position="top-left" size={48} /></div>
