@@ -13,10 +13,12 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
-  const { positionsRef, hpRef, projectilesRef } = useArena({ roomId, playerId, players, joystickRef, frozen })
+  const { positionsRef, targetsRef, hpRef, projectilesRef } = useArena({ roomId, playerId, players, joystickRef, frozen })
 
   useEffect(() => {
-    if (positionsMapRef) positionsMapRef.current = positionsRef.current
+    // Expose broadcast targets (not lerped positions) so host quiz detection
+    // uses the actual position the mobile client reported.
+    if (positionsMapRef) positionsMapRef.current = targetsRef.current
   })
 
   useEffect(() => {

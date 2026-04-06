@@ -291,5 +291,5 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
     }
   }, [playerId, joystickRef])
 
-  return { positionsRef, connectedRef, hpRef, projectilesRef }
+  return { positionsRef, targetsRef, connectedRef, hpRef, projectilesRef }
 }
