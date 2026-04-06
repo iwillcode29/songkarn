@@ -8,11 +8,14 @@ import Character from './Character'
  * Shared arena renderer — Songkran temple courtyard theme.
  * Scales the logical world (800×450) to fit any container.
  */
-export default function Arena({ roomId, playerId, players, joystickRef }) {
+export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef }) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
   const { positionsRef, hpRef, projectilesRef } = useArena({ roomId, playerId, players, joystickRef })
+
+  // Expose positions to parent via mutable ref (for quiz zone detection)
+  if (positionsMapRef) positionsMapRef.current = positionsRef.current
 
   useEffect(() => {
     const el = containerRef.current
@@ -57,8 +60,11 @@ export default function Arena({ roomId, playerId, players, joystickRef }) {
       >
         {/* Ground layers */}
         <GroundTexture />
-        <WaterPuddles />
-        <SceneryProps />
+        {!quizOverlay && <WaterPuddles />}
+        {!quizOverlay && <SceneryProps />}
+
+        {/* Quiz zone overlay (replaces scenery when active) */}
+        {quizOverlay}
 
         {/* Characters */}
         {renderList.map(({ player, x, y, facing, isMoving, hp }, i) => (

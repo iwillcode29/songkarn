@@ -5,10 +5,13 @@ import { useRoom } from '../hooks/useRoom'
 import { usePlayers } from '../hooks/usePlayers'
 import { useMatches } from '../hooks/useMatches'
 import { WEAPONS } from '../lib/gameLogic'
+import { QUIZ_QUESTIONS, ZONE_COLORS } from '../lib/quizQuestions'
+import { getZoneForPosition } from '../lib/arena/physics'
 import JoinForm from '../components/mobile/JoinForm'
 import PickScreen from '../components/mobile/PickScreen'
 import MobileChampionScreen from '../components/mobile/MobileChampionScreen'
 import Arena from '../components/arena/Arena'
+import QuizZones from '../components/arena/QuizZones'
 import Joystick from '../components/arena/Joystick'
 import { useKeyboard } from '../hooks/useKeyboard'
 
@@ -58,6 +61,8 @@ export default function JoinPage() {
     )
   }, [matches, room, playerId])
 
+  const isQuiz = room?.game_mode === 'quiz'
+
   const phase = useMemo(() => {
     if (roomLoading) return 'loading'
     if (!room) return 'invalid'
@@ -70,6 +75,13 @@ export default function JoinPage() {
     }
     if (room.status === 'lobby') return 'lobby_wait'
 
+    // Quiz mode: playing = quiz_playing, eliminated = eliminated
+    if (room.game_mode === 'quiz') {
+      if (!myPlayer.is_alive) return 'eliminated'
+      return 'quiz_playing'
+    }
+
+    // Bracket mode
     if (!myCurrentMatch) return 'lobby_wait'
 
     if (myCurrentMatch.is_bye) return 'bye'
@@ -102,6 +114,76 @@ export default function JoinPage() {
   }
   if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
   if (phase === 'champion') return <MobileChampionScreen player={myPlayer} />
+
+  // Quiz mode playing screen
+  if (phase === 'quiz_playing') {
+    const questionIndex = (room?.current_round ?? 1) - 1
+    const question = QUIZ_QUESTIONS[questionIndex] ?? null
+    const quizOverlay = <QuizZones question={question} revealedAnswer={null} />
+
+    return (
+      <div className="sk-bg flex flex-col items-center px-4 py-4">
+        {/* Question card (compact for mobile) */}
+        {question && (
+          <motion.div
+            key={questionIndex}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-sm mb-3"
+          >
+            <p className="text-xs font-body mb-1" style={{ color: 'var(--cream-400)' }}>
+              Question {room.current_round} / {QUIZ_QUESTIONS.length}
+            </p>
+            <p className="text-lg font-bold leading-snug mb-2" style={{ color: 'var(--cream-50)' }}>
+              {question.question}
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {['a', 'b', 'c', 'd'].map((key) => {
+                const color = ZONE_COLORS[key]
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center gap-1.5 rounded-lg px-2 py-1.5"
+                    style={{
+                      background: color.bg,
+                      border: `1px solid ${color.border}`,
+                    }}
+                  >
+                    <span className="font-black text-sm" style={{ color: color.text }}>
+                      {key.toUpperCase()}
+                    </span>
+                    <span className="font-body text-xs" style={{ color: 'var(--cream-200)' }}>
+                      {question[key]}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Arena with zones */}
+        <Arena
+          roomId={roomId}
+          playerId={playerId}
+          players={players.filter((p) => p.is_alive)}
+          joystickRef={joystickRef}
+          quizOverlay={quizOverlay}
+        />
+
+        {/* Controls */}
+        {isTouchDevice && (
+          <div className="flex items-center justify-center gap-10 mt-2">
+            <Joystick inputRef={joystickRef} />
+          </div>
+        )}
+
+        <p className="text-center mt-2 text-xs font-body" style={{ color: 'var(--cream-400)' }}>
+          {isTouchDevice ? 'Run to your answer zone!' : 'Use W A S D to move to your answer!'}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="sk-bg flex flex-col items-center justify-center px-5 py-8">

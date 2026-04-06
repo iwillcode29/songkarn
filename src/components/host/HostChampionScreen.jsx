@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { LaiThaiDivider } from '../ThaiDecor'
 
-export default function HostChampionScreen({ champion, onPlayAgain }) {
+export default function HostChampionScreen({ champion, champions = [], isQuiz = false, onPlayAgain }) {
   // Gold & water confetti
   const confetti = Array.from({ length: 35 }, (_, i) => ({
     id: i,
@@ -65,20 +65,49 @@ export default function HostChampionScreen({ champion, onPlayAgain }) {
             className="font-bold text-xl uppercase tracking-[0.2em]"
             style={{ color: 'var(--gold-400)' }}
           >
-            Champion
+            {isQuiz && champions.length > 1 ? 'Champions' : isQuiz && champions.length === 0 ? 'Game Over' : 'Champion'}
           </p>
-          <h1
-            className="text-7xl font-black leading-none"
-            style={{ color: 'var(--cream-50)', textShadow: '0 4px 40px rgba(232,184,74,0.15)' }}
-          >
-            {champion?.name ?? '???'}
-          </h1>
+          {isQuiz && champions.length > 1 ? (
+            <h1
+              className="text-5xl font-black leading-none"
+              style={{ color: 'var(--cream-50)', textShadow: '0 4px 40px rgba(232,184,74,0.15)' }}
+            >
+              {champions.map((c) => c.name).join(' & ')}
+            </h1>
+          ) : (
+            <h1
+              className="text-7xl font-black leading-none"
+              style={{ color: 'var(--cream-50)', textShadow: '0 4px 40px rgba(232,184,74,0.15)' }}
+            >
+              {champion?.name ?? 'Nobody survived!'}
+            </h1>
+          )}
           <p className="text-xl font-semibold" style={{ color: 'var(--gold-200)' }}>
-            Water Champion! 💦
+            {isQuiz
+              ? champions.length > 0 ? 'Quiz Survivors! 🎉' : 'Better luck next time! 💦'
+              : 'Water Champion! 💦'}
           </p>
         </div>
 
-        {champion && (
+        {isQuiz && champions.length > 1 ? (
+          <div className="flex justify-center gap-4 flex-wrap">
+            {champions.map((c, i) => (
+              <motion.img
+                key={c.id}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', delay: 0.4 + i * 0.15 }}
+                src={c.avatar_url}
+                alt={c.name}
+                className="w-24 h-24 rounded-full shadow-2xl"
+                style={{
+                  border: '3px solid var(--gold-400)',
+                  boxShadow: '0 0 30px rgba(232,184,74,0.12)',
+                }}
+              />
+            ))}
+          </div>
+        ) : champion ? (
           <motion.img
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -91,7 +120,7 @@ export default function HostChampionScreen({ champion, onPlayAgain }) {
               boxShadow: '0 0 40px rgba(232,184,74,0.15)',
             }}
           />
-        )}
+        ) : null}
 
         <motion.button
           initial={{ opacity: 0 }}

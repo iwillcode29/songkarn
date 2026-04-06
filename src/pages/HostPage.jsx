@@ -8,6 +8,7 @@ import CreateRoom from '../components/host/CreateRoom'
 import Lobby from '../components/host/Lobby'
 import BracketView from '../components/host/BracketView'
 import HostChampionScreen from '../components/host/HostChampionScreen'
+import QuizHostView from '../components/host/QuizHostView'
 
 /**
  * HostPage — orchestrates the entire game lifecycle:
@@ -48,6 +49,11 @@ export default function HostPage() {
 
   const champion = useMemo(
     () => (room?.status === 'finished' ? players.find((p) => p.is_alive) : null),
+    [room?.status, players],
+  )
+
+  const champions = useMemo(
+    () => (room?.status === 'finished' ? players.filter((p) => p.is_alive) : []),
     [room?.status, players],
   )
 
@@ -206,6 +212,8 @@ export default function HostPage() {
     return (
       <HostChampionScreen
         champion={champion}
+        champions={champions}
+        isQuiz={room.game_mode === 'quiz'}
         onPlayAgain={() => {
           localStorage.removeItem('songkran_host_room')
           setRoomId(null)
@@ -215,6 +223,10 @@ export default function HostPage() {
   }
 
   // room.status === 'playing'
+  if (room.game_mode === 'quiz') {
+    return <QuizHostView room={room} players={players} />
+  }
+
   return (
     <BracketView
       room={room}

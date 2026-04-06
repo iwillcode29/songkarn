@@ -121,6 +121,19 @@ export function checkProjectileHit(proj, posMap, ownerId) {
 }
 
 /**
+ * Returns which quiz zone (a/b/c/d) a position falls in.
+ * Layout: A=top-left, B=top-right, C=bottom-left, D=bottom-right
+ */
+export function getZoneForPosition(x, y) {
+  const midX = WORLD_WIDTH / 2
+  const midY = WORLD_HEIGHT / 2
+  if (x < midX && y < midY) return 'a'
+  if (x >= midX && y < midY) return 'b'
+  if (x < midX && y >= midY) return 'c'
+  return 'd'
+}
+
+/**
  * Map a direction vector to a 4-direction facing string.
  */
 export function directionToFacing(dx, dy) {

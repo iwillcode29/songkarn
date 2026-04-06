@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.rooms (
   id            TEXT        PRIMARY KEY,            -- 4-char code, e.g. "WTRG"
   status        TEXT        NOT NULL DEFAULT 'lobby',  -- lobby | playing | finished
   current_round INT         NOT NULL DEFAULT 1,
+  game_mode     TEXT        NOT NULL DEFAULT 'bracket', -- bracket | quiz
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -68,3 +69,10 @@ CREATE POLICY "anon_all_matches"
 ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.players;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.matches;
+
+-- ────────────────────────────────────────
+-- 4. QUIZ MODE (run this if upgrading from bracket-only schema)
+-- Adds game_mode column to rooms table.
+-- ────────────────────────────────────────
+
+-- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS game_mode TEXT NOT NULL DEFAULT 'bracket';

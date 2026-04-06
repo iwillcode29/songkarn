@@ -4,9 +4,25 @@ import { supabase } from '../../lib/supabase'
 import { generateRoomCode } from '../../lib/gameLogic'
 import { LaiThaiDivider, WaterDrops, CornerOrnament } from '../ThaiDecor'
 
+const MODES = [
+  {
+    id: 'bracket',
+    emoji: '🔫',
+    title: 'Battle',
+    desc: 'Rock-Paper-Scissors bracket tournament',
+  },
+  {
+    id: 'quiz',
+    emoji: '❓',
+    title: 'Quiz',
+    desc: '10 questions — run to the right zone!',
+  },
+]
+
 export default function CreateRoom({ onRoomCreated }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [mode, setMode] = useState('bracket')
 
   async function handleCreate() {
     setLoading(true)
@@ -15,7 +31,7 @@ export default function CreateRoom({ onRoomCreated }) {
 
     const { error: dbError } = await supabase
       .from('rooms')
-      .insert({ id: code, status: 'lobby', current_round: 1 })
+      .insert({ id: code, status: 'lobby', current_round: 1, game_mode: mode })
 
     if (dbError) {
       setError('Could not create room. Check your Supabase config.')
@@ -31,7 +47,6 @@ export default function CreateRoom({ onRoomCreated }) {
     <div className="sk-bg relative flex flex-col items-center justify-center px-6 overflow-hidden">
       <WaterDrops count={15} />
 
-      {/* Corner ornaments */}
       <div className="fixed top-4 left-4"><CornerOrnament position="top-left" size={48} /></div>
       <div className="fixed top-4 right-4"><CornerOrnament position="top-right" size={48} /></div>
       <div className="fixed bottom-4 left-4"><CornerOrnament position="bottom-left" size={48} /></div>
@@ -50,18 +65,15 @@ export default function CreateRoom({ onRoomCreated }) {
           className="mb-6 select-none"
         >
           <svg width="120" height="120" viewBox="0 0 120 120" fill="none" className="mx-auto">
-            {/* Main drop */}
             <path
               d="M60 10 C60 10 25 50 25 72 C25 92 40 108 60 108 C80 108 95 92 95 72 C95 50 60 10 60 10Z"
               fill="url(#waterGrad)"
               opacity="0.9"
             />
-            {/* Small splashes */}
             <circle cx="30" cy="85" r="6" fill="#4ab8d4" opacity="0.4" />
             <circle cx="90" cy="80" r="5" fill="#4ab8d4" opacity="0.3" />
             <circle cx="18" cy="70" r="3" fill="#7dd3e8" opacity="0.3" />
             <circle cx="102" cy="68" r="3.5" fill="#7dd3e8" opacity="0.25" />
-            {/* Highlight */}
             <ellipse cx="50" cy="55" rx="8" ry="12" fill="white" opacity="0.15" transform="rotate(-15 50 55)" />
             <defs>
               <linearGradient id="waterGrad" x1="60" y1="10" x2="60" y2="108" gradientUnits="userSpaceOnUse">
@@ -79,43 +91,57 @@ export default function CreateRoom({ onRoomCreated }) {
           transition={{ delay: 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="space-y-2 mb-4"
         >
-          <p
-            className="text-sm font-light tracking-[0.3em] uppercase"
-            style={{ color: 'var(--gold-400)' }}
-          >
+          <p className="text-sm font-light tracking-[0.3em] uppercase" style={{ color: 'var(--gold-400)' }}>
             Songkran Tournament
           </p>
-          <h1
-            className="text-6xl lg:text-7xl font-black tracking-tight leading-[0.9]"
-            style={{ color: 'var(--cream-50)' }}
-          >
+          <h1 className="text-6xl lg:text-7xl font-black tracking-tight leading-[0.9]" style={{ color: 'var(--cream-50)' }}>
             Songkran
           </h1>
-          <h2
-            className="text-3xl lg:text-4xl font-bold"
-            style={{ color: 'var(--gold-400)' }}
-          >
+          <h2 className="text-3xl lg:text-4xl font-bold" style={{ color: 'var(--gold-400)' }}>
             Tournament
           </h2>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
           <LaiThaiDivider className="mx-auto mb-6" />
         </motion.div>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        {/* Game mode picker */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="font-body text-base font-light mb-10"
-          style={{ color: 'var(--cream-200)' }}
+          className="flex gap-3 justify-center mb-8"
         >
-          The ultimate water battle — Water Gun, Umbrella, or Scissors?
-        </motion.p>
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              className="flex-1 max-w-[180px] rounded-xl py-4 px-4 text-center transition-all"
+              style={mode === m.id ? {
+                background: 'rgba(232,184,74,0.12)',
+                border: '2px solid rgba(232,184,74,0.4)',
+              } : {
+                background: 'rgba(255,255,255,0.03)',
+                border: '2px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <div className="text-3xl mb-1">{m.emoji}</div>
+              <div
+                className="font-bold text-sm"
+                style={{ color: mode === m.id ? 'var(--gold-400)' : 'var(--cream-200)' }}
+              >
+                {m.title}
+              </div>
+              <div
+                className="text-xs font-body mt-1"
+                style={{ color: mode === m.id ? 'var(--cream-200)' : 'var(--cream-400)' }}
+              >
+                {m.desc}
+              </div>
+            </button>
+          ))}
+        </motion.div>
 
         {/* Create button */}
         <motion.button
@@ -133,7 +159,6 @@ export default function CreateRoom({ onRoomCreated }) {
             boxShadow: '0 8px 32px rgba(212, 152, 43, 0.2), inset 0 1px 0 rgba(255,255,255,0.15)',
           }}
         >
-          {/* Shimmer overlay */}
           <span
             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{
@@ -148,17 +173,11 @@ export default function CreateRoom({ onRoomCreated }) {
         </motion.button>
 
         {error && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-4 text-sm"
-            style={{ color: 'var(--terra-400)' }}
-          >
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 text-sm" style={{ color: 'var(--terra-400)' }}>
             {error}
           </motion.p>
         )}
 
-        {/* Subtle footer */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

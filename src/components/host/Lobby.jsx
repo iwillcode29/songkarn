@@ -16,6 +16,20 @@ export default function Lobby({ room, players, onClearRoom }) {
     if (!canStart || starting) return
     setStarting(true)
 
+    // Quiz mode: just flip to playing (no bracket creation)
+    if (room.game_mode === 'quiz') {
+      const { error: roomError } = await supabase
+        .from('rooms')
+        .update({ status: 'playing' })
+        .eq('id', room.id)
+      if (roomError) {
+        console.error('Failed to start game:', roomError)
+        setStarting(false)
+      }
+      return
+    }
+
+    // Bracket mode: create match pairs
     const pairs = createBracketPairs(players)
     const matchInserts = pairs.map((pair) => ({
       room_id: room.id,
@@ -59,9 +73,14 @@ export default function Lobby({ room, players, onClearRoom }) {
           className="flex items-baseline gap-3"
         >
           <h1 className="text-3xl lg:text-4xl font-black sk-gold-text">
-            Songkran Tournament
+            Songkran {room.game_mode === 'quiz' ? 'Quiz' : 'Tournament'}
           </h1>
           <WaterIcon />
+          {room.game_mode === 'quiz' && (
+            <span className="text-sm font-body ml-1" style={{ color: 'var(--water-400)' }}>
+              10 Questions
+            </span>
+          )}
         </motion.div>
 
         {/* Top row: QR + Players + Start */}
@@ -203,7 +222,7 @@ export default function Lobby({ room, players, onClearRoom }) {
               {starting
                 ? 'Starting...'
                 : canStart
-                ? 'Start Tournament'
+                ? room.game_mode === 'quiz' ? 'Start Quiz' : 'Start Tournament'
                 : 'Need at least 2 players'}
             </motion.button>
 
