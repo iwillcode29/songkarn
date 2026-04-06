@@ -86,14 +86,16 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen }) {
   useEffect(() => {
     if (!roomId) return
 
-    const channel = supabase.channel(`arena:${roomId}`, {
+    // Force-remove any stale channel with this name first. Supabase reuses
+    // channel instances by name, so a lobby→quiz remount race can return
+    // the old already-joined channel, preventing listeners from attaching.
+    const channelName = `arena:${roomId}`
+    const stale = supabase.getChannels().find((c) => c.topic === `realtime:${channelName}`)
+    if (stale) supabase.removeChannel(stale)
+
+    const channel = supabase.channel(channelName, {
       config: { broadcast: { self: false } },
     })
-
-    // Guard: Supabase throws if presence callbacks are added to an already-joined
-    // channel (can happen with React StrictMode's double-effect invocation).
-    // If the channel was already joined, skip setup — the cleanup will remove it.
-    if (channel.state === 'joined' || channel.state === 'joining') return
 
     channel
       .on('broadcast', { event: PROJ_EVENT }, ({ payload }) => {
