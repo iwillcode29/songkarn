@@ -10,7 +10,7 @@ export default function Lobby({ room, players, onClearRoom }) {
   const [starting, setStarting] = useState(false)
   const [clearing, setClearing] = useState(false)
   const joinUrl = `${window.location.origin}/join/${room.id}`
-  const canStart = players.length >= 2
+  const canStart = room.game_mode === 'quiz' ? players.length >= 1 : players.length >= 2
 
   async function handleStartGame() {
     if (!canStart || starting) return
@@ -223,7 +223,7 @@ export default function Lobby({ room, players, onClearRoom }) {
                 ? 'Starting...'
                 : canStart
                 ? room.game_mode === 'quiz' ? 'Start Quiz' : 'Start Tournament'
-                : 'Need at least 2 players'}
+                : room.game_mode === 'quiz' ? 'Need at least 1 player' : 'Need at least 2 players'}
             </motion.button>
 
             <LaiThaiDivider className="mx-auto mt-2 opacity-30" />
