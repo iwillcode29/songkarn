@@ -186,80 +186,91 @@ export default function JoinPage() {
   if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
   if (phase === 'champion') return <>{reconnectBanner}<MobileChampionScreen player={myPlayer} /></>
 
-  // Quiz mode playing screen
-  if (phase === 'quiz_playing') {
-    const questionIndex = (room?.current_round ?? 1) - 1
-    const question = QUIZ_QUESTIONS[questionIndex] ?? null
-    const quizOverlay = <QuizZones question={question} revealedAnswer={quizReveal} />
+  // ── Phases that use the Arena (lobby_wait + quiz_playing) ──
+  // A SINGLE Arena instance persists across lobby→quiz transition.
+  // No unmount/remount = no channel reconnect.
+  const showArena = phase === 'lobby_wait' || phase === 'quiz_playing'
 
-    return (
-      <div className="sk-bg-fixed flex flex-col items-center px-4 py-3">
-        {reconnectBanner}
-        {/* Question card (compact for mobile) */}
-        {question && (
-          <motion.div
-            key={questionIndex}
-            initial={{ opacity: 0, y: 10 }}
+  const questionIndex = (room?.current_round ?? 1) - 1
+  const question = isQuiz ? (QUIZ_QUESTIONS[questionIndex] ?? null) : null
+  const quizOverlay = phase === 'quiz_playing' ? <QuizZones question={question} revealedAnswer={quizReveal} /> : null
+
+  // In quiz mode, show only alive players; in lobby, show all
+  const arenaPlayers = phase === 'quiz_playing' ? players.filter((p) => p.is_alive) : players
+
+  return (
+    <div className="sk-bg-fixed flex flex-col items-center justify-center px-5 py-4">
+      {reconnectBanner}
+
+      {/* ── Quiz question card (only in quiz_playing) ── */}
+      {phase === 'quiz_playing' && question && (
+        <motion.div
+          key={questionIndex}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm mb-2 flex-shrink-0"
+        >
+          <p className="text-xs font-body mb-1" style={{ color: 'var(--cream-400)' }}>
+            Question {room.current_round} / {QUIZ_QUESTIONS.length}
+          </p>
+          <p className="text-lg font-bold leading-snug mb-2" style={{ color: 'var(--cream-50)' }}>
+            {question.question}
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {['a', 'b', 'c', 'd'].map((key) => {
+              const color = ZONE_COLORS[key]
+              const isCorrect = quizReveal === key
+              const isWrong = quizReveal && quizReveal !== key
+              return (
+                <div
+                  key={key}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-all"
+                  style={{
+                    background: isCorrect ? 'rgba(34,197,94,0.2)' : isWrong ? 'rgba(255,255,255,0.02)' : color.bg,
+                    border: `1px solid ${isCorrect ? 'rgba(34,197,94,0.5)' : isWrong ? 'rgba(255,255,255,0.04)' : color.border}`,
+                    opacity: isWrong ? 0.4 : 1,
+                  }}
+                >
+                  <span className="font-black text-sm" style={{ color: isCorrect ? '#22c55e' : color.text }}>
+                    {key.toUpperCase()}
+                  </span>
+                  <span className="font-body text-xs" style={{ color: isCorrect ? '#bbf7d0' : 'var(--cream-200)' }}>
+                    {question[key]}
+                  </span>
+                  {isCorrect && <span className="ml-auto text-xs">✅</span>}
+                </div>
+              )
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Quiz answer banner */}
+      <AnimatePresence>
+        {phase === 'quiz_playing' && quizReveal && question && (
+          <motion.p
+            initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-sm mb-2 flex-shrink-0"
+            exit={{ opacity: 0 }}
+            className="text-center text-sm font-bold mb-1 flex-shrink-0"
+            style={{ color: 'var(--water-300)' }}
           >
-            <p className="text-xs font-body mb-1" style={{ color: 'var(--cream-400)' }}>
-              Question {room.current_round} / {QUIZ_QUESTIONS.length}
-            </p>
-            <p className="text-lg font-bold leading-snug mb-2" style={{ color: 'var(--cream-50)' }}>
-              {question.question}
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {['a', 'b', 'c', 'd'].map((key) => {
-                const color = ZONE_COLORS[key]
-                const isCorrect = quizReveal === key
-                const isWrong = quizReveal && quizReveal !== key
-                return (
-                  <div
-                    key={key}
-                    className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-all"
-                    style={{
-                      background: isCorrect ? 'rgba(34,197,94,0.2)' : isWrong ? 'rgba(255,255,255,0.02)' : color.bg,
-                      border: `1px solid ${isCorrect ? 'rgba(34,197,94,0.5)' : isWrong ? 'rgba(255,255,255,0.04)' : color.border}`,
-                      opacity: isWrong ? 0.4 : 1,
-                    }}
-                  >
-                    <span className="font-black text-sm" style={{ color: isCorrect ? '#22c55e' : color.text }}>
-                      {key.toUpperCase()}
-                    </span>
-                    <span className="font-body text-xs" style={{ color: isCorrect ? '#bbf7d0' : 'var(--cream-200)' }}>
-                      {question[key]}
-                    </span>
-                    {isCorrect && <span className="ml-auto text-xs">✅</span>}
-                  </div>
-                )
-              })}
-            </div>
-          </motion.div>
+            Answer: {quizReveal.toUpperCase()} — {question[quizReveal]}
+          </motion.p>
         )}
+      </AnimatePresence>
 
-        {/* Result banner after reveal */}
-        <AnimatePresence>
-          {quizReveal && question && (
-            <motion.p
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-center text-sm font-bold mb-1 flex-shrink-0"
-              style={{ color: 'var(--water-300)' }}
-            >
-              Answer: {quizReveal.toUpperCase()} — {question[quizReveal]}
-            </motion.p>
-          )}
-        </AnimatePresence>
-
-        {/* Arena with zones */}
-        <div key={`shake-q-${shakeSeed}`} className={`flex-1 min-h-0 w-full flex items-center justify-center${shakeSeed > 0 ? ' hit-shake' : ''}`}>
-          <div style={{ width: '100%', maxWidth: 'calc((100dvh - 220px) * 800 / 450)' }}>
+      {/* ── Persistent Arena — same instance for lobby + quiz ── */}
+      {showArena && (
+        <div
+          key={`shake-${shakeSeed}`}
+          className={`${phase === 'quiz_playing' ? 'flex-1 min-h-0' : ''} w-full flex items-center justify-center${shakeSeed > 0 ? ' hit-shake' : ''}`}
+        >
+          <div style={phase === 'quiz_playing' ? { width: '100%', maxWidth: 'calc((100dvh - 220px) * 800 / 450)' } : { width: '100%' }}>
             <Arena
               roomId={roomId}
               playerId={playerId}
-              players={players.filter((p) => p.is_alive)}
+              players={arenaPlayers}
               joystickRef={joystickRef}
               quizOverlay={quizOverlay}
               selfPositionRef={myPositionRef}
@@ -268,28 +279,36 @@ export default function JoinPage() {
             />
           </div>
         </div>
+      )}
 
-        {/* Controls */}
-        {isTouchDevice && !quizReveal && (
-          <div className="flex items-center justify-center gap-10 mt-1 flex-shrink-0">
-            <Joystick inputRef={joystickRef} />
-          </div>
-        )}
+      {/* ── Controls ── */}
+      {showArena && isTouchDevice && !(phase === 'quiz_playing' && quizReveal) && (
+        <div className="flex items-center justify-center gap-10 mt-1 flex-shrink-0">
+          <Joystick inputRef={joystickRef} />
+          {phase === 'lobby_wait' && <ShootButton joystickRef={joystickRef} />}
+        </div>
+      )}
 
+      {/* ── Arena status text ── */}
+      {phase === 'lobby_wait' && (
+        <div className="text-center mt-1">
+          <p className="text-center font-semibold text-xs mb-1" style={{ color: 'rgba(232,184,74,0.6)' }}>
+            {isTouchDevice ? 'Walk around while waiting!' : 'Use W A S D to walk around!'}
+          </p>
+          <PulseDot text="Waiting for the host to start…" />
+        </div>
+      )}
+
+      {phase === 'quiz_playing' && (
         <p className="text-center mt-1 text-xs font-body flex-shrink-0" style={{ color: 'var(--cream-400)' }}>
           {quizReveal
             ? 'Waiting for next question...'
             : isTouchDevice ? 'Run to your answer zone!' : 'Use W A S D to move to your answer!'}
         </p>
-      </div>
-    )
-  }
+      )}
 
-  return (
-    <div className="sk-bg-fixed flex flex-col items-center justify-center px-5 py-4">
-      {reconnectBanner}
-      {/* Player badge */}
-      {myPlayer && (
+      {/* ── Player badge (bracket phases only) ── */}
+      {!showArena && myPlayer && (
         <div className="flex items-center gap-3 mb-6 w-full max-w-sm">
           <img
             src={myPlayer.avatar_url}
@@ -307,6 +326,7 @@ export default function JoinPage() {
         </div>
       )}
 
+      {/* ── Bracket mode phase screens ── */}
       <AnimatePresence mode="wait">
         {phase === 'picking' && (
           <PhaseWrapper key="pick">
@@ -327,41 +347,6 @@ export default function JoinPage() {
               sub2={<PulseDot text="Watching the host screen!" />}
             />
           </PhaseWrapper>
-        )}
-
-        {phase === 'lobby_wait' && (
-          <motion.div
-            key="lobby"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="w-full flex flex-col"
-          >
-            <p
-              className="text-center font-semibold text-xs mb-2"
-              style={{ color: 'rgba(232,184,74,0.6)' }}
-            >
-              {isTouchDevice ? 'Walk around while waiting!' : 'Use W A S D to walk around!'}
-            </p>
-            <div key={`shake-l-${shakeSeed}`} className={shakeSeed > 0 ? 'hit-shake' : undefined}>
-              <Arena
-                roomId={roomId}
-                playerId={playerId}
-                players={players}
-                joystickRef={joystickRef}
-                onSelfHit={handleSelfHit}
-              />
-            </div>
-            {isTouchDevice && (
-              <div className="flex items-center justify-center gap-10">
-                <Joystick inputRef={joystickRef} />
-                <ShootButton joystickRef={joystickRef} />
-              </div>
-            )}
-            <div className="text-center mt-1">
-              <PulseDot text="Waiting for the host to start…" />
-            </div>
-          </motion.div>
         )}
 
         {phase === 'bye' && (
