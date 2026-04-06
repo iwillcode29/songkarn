@@ -2,12 +2,8 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { generateRoomCode } from '../../lib/gameLogic'
+import { LaiThaiDivider, WaterDrops, CornerOrnament } from '../ThaiDecor'
 
-/**
- * Landing screen shown on /host before any room exists.
- * Clicking "Create Room" generates a 4-char code, inserts into DB,
- * persists it to localStorage, and calls onRoomCreated(code).
- */
 export default function CreateRoom({ onRoomCreated }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -32,39 +28,146 @@ export default function CreateRoom({ onRoomCreated }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh bg-gradient-to-b from-blue-950 via-cyan-950 to-slate-900 px-6">
+    <div className="sk-bg relative flex flex-col items-center justify-center px-6 overflow-hidden">
+      <WaterDrops count={15} />
+
+      {/* Corner ornaments */}
+      <div className="fixed top-4 left-4"><CornerOrnament position="top-left" size={48} /></div>
+      <div className="fixed top-4 right-4"><CornerOrnament position="top-right" size={48} /></div>
+      <div className="fixed bottom-4 left-4"><CornerOrnament position="bottom-left" size={48} /></div>
+      <div className="fixed bottom-4 right-4"><CornerOrnament position="bottom-right" size={48} /></div>
+
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="text-center space-y-10 max-w-lg"
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="text-center relative z-10 max-w-lg"
       >
-        {/* Hero */}
-        <div className="space-y-3">
-          <div className="text-9xl animate-float select-none">💦</div>
-          <h1 className="text-6xl font-black tracking-tight text-white leading-none">
-            Songkran<br />
-            <span className="text-cyan-400">Tournament</span>
-          </h1>
-          <p className="text-slate-400 text-xl">
-            The ultimate water battle &nbsp;🔫&nbsp;☂️&nbsp;✂️
+        {/* Water splash SVG hero */}
+        <motion.div
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className="mb-6 select-none"
+        >
+          <svg width="120" height="120" viewBox="0 0 120 120" fill="none" className="mx-auto">
+            {/* Main drop */}
+            <path
+              d="M60 10 C60 10 25 50 25 72 C25 92 40 108 60 108 C80 108 95 92 95 72 C95 50 60 10 60 10Z"
+              fill="url(#waterGrad)"
+              opacity="0.9"
+            />
+            {/* Small splashes */}
+            <circle cx="30" cy="85" r="6" fill="#4ab8d4" opacity="0.4" />
+            <circle cx="90" cy="80" r="5" fill="#4ab8d4" opacity="0.3" />
+            <circle cx="18" cy="70" r="3" fill="#7dd3e8" opacity="0.3" />
+            <circle cx="102" cy="68" r="3.5" fill="#7dd3e8" opacity="0.25" />
+            {/* Highlight */}
+            <ellipse cx="50" cy="55" rx="8" ry="12" fill="white" opacity="0.15" transform="rotate(-15 50 55)" />
+            <defs>
+              <linearGradient id="waterGrad" x1="60" y1="10" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#7dd3e8" />
+                <stop offset="1" stopColor="#1d7490" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </motion.div>
+
+        {/* Title */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="space-y-2 mb-4"
+        >
+          <p
+            className="text-sm font-light tracking-[0.3em] uppercase"
+            style={{ color: 'var(--gold-400)' }}
+          >
+            สงกรานต์ ทัวร์นาเมนต์
           </p>
-        </div>
+          <h1
+            className="text-6xl lg:text-7xl font-black tracking-tight leading-[0.9]"
+            style={{ color: 'var(--cream-50)' }}
+          >
+            Songkran
+          </h1>
+          <h2
+            className="text-3xl lg:text-4xl font-bold"
+            style={{ color: 'var(--gold-400)' }}
+          >
+            Tournament
+          </h2>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <LaiThaiDivider className="mx-auto mb-6" />
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.35 }}
+          className="font-body text-base font-light mb-10"
+          style={{ color: 'var(--cream-200)' }}
+        >
+          The ultimate water battle — Water Gun, Umbrella, or Scissors?
+        </motion.p>
 
         {/* Create button */}
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.5 }}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
           onClick={handleCreate}
           disabled={loading}
-          className="px-14 py-5 bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-slate-900 font-black text-3xl rounded-3xl shadow-2xl shadow-cyan-500/30 disabled:opacity-50 transition-colors"
+          className="relative px-12 py-5 font-bold text-xl rounded-2xl transition-all disabled:opacity-50 overflow-hidden group"
+          style={{
+            background: 'linear-gradient(135deg, var(--gold-500), var(--gold-600))',
+            color: 'var(--twilight-950)',
+            boxShadow: '0 8px 32px rgba(212, 152, 43, 0.2), inset 0 1px 0 rgba(255,255,255,0.15)',
+          }}
         >
-          {loading ? '⏳ Creating...' : '🎮 Create Room'}
+          {/* Shimmer overlay */}
+          <span
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 2s ease-in-out infinite',
+            }}
+          />
+          <span className="relative">
+            {loading ? 'กำลังสร้าง...' : 'สร้างห้อง — Create Room'}
+          </span>
         </motion.button>
 
         {error && (
-          <p className="text-red-400 text-sm">{error}</p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-4 text-sm"
+            style={{ color: 'var(--terra-400)' }}
+          >
+            {error}
+          </motion.p>
         )}
+
+        {/* Subtle footer */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="mt-16 text-xs font-body"
+          style={{ color: 'rgba(196, 168, 122, 0.35)' }}
+        >
+          🔫 ☂️ ✂️
+        </motion.p>
       </motion.div>
     </div>
   )

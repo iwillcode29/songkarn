@@ -1,21 +1,24 @@
 import { motion } from 'framer-motion'
+import { LaiThaiDivider } from '../ThaiDecor'
 
-/**
- * Full-screen celebration shown on the host when the tournament ends.
- */
 export default function HostChampionScreen({ champion, onPlayAgain }) {
-  // Generate ~40 confetti particles with random properties
-  const confetti = Array.from({ length: 40 }, (_, i) => ({
+  // Gold & water confetti
+  const confetti = Array.from({ length: 35 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
     delay: Math.random() * 1.5,
-    duration: 2 + Math.random() * 2,
-    emoji: ['💧', '🌊', '✨', '🎉', '🏆', '💦'][Math.floor(Math.random() * 6)],
-    size: 1.2 + Math.random() * 1.5,
+    duration: 2.5 + Math.random() * 2.5,
+    emoji: ['💧', '✨', '🏆', '💦', '🪷'][Math.floor(Math.random() * 5)],
+    size: 1.2 + Math.random() * 1.2,
   }))
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-dvh bg-gradient-to-b from-yellow-900 via-orange-950 to-slate-900 overflow-hidden">
+    <div
+      className="relative flex flex-col items-center justify-center min-h-dvh overflow-hidden"
+      style={{
+        background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(143,91,18,0.25), transparent 70%), linear-gradient(175deg, #1a1033 0%, var(--twilight-950) 50%, #0a0814 100%)',
+      }}
+    >
       {/* Confetti */}
       {confetti.map((c) => (
         <motion.div
@@ -40,25 +43,38 @@ export default function HostChampionScreen({ champion, onPlayAgain }) {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', damping: 10, delay: 0.3 }}
-        className="text-center space-y-8 relative z-10 px-8"
+        className="text-center space-y-6 relative z-10 px-8"
       >
+        {/* Trophy with glow */}
         <motion.div
-          animate={{ rotate: [0, -10, 10, -10, 0] }}
+          animate={{ rotate: [0, -8, 8, -8, 0] }}
           transition={{ duration: 0.6, delay: 0.8, repeat: 2 }}
-          className="text-9xl"
+          className="text-9xl relative"
         >
-          🏆
+          <span className="relative z-10">🏆</span>
+          <div
+            className="absolute inset-0 blur-3xl opacity-30"
+            style={{ background: 'radial-gradient(circle, var(--gold-400), transparent)' }}
+          />
         </motion.div>
 
+        <LaiThaiDivider className="mx-auto" />
+
         <div className="space-y-2">
-          <p className="text-yellow-400 font-bold text-2xl uppercase tracking-widest">
-            Champion
+          <p
+            className="font-bold text-xl uppercase tracking-[0.2em]"
+            style={{ color: 'var(--gold-400)' }}
+          >
+            แชมป์
           </p>
-          <h1 className="text-7xl font-black text-white drop-shadow-2xl">
+          <h1
+            className="text-7xl font-black leading-none"
+            style={{ color: 'var(--cream-50)', textShadow: '0 4px 40px rgba(232,184,74,0.15)' }}
+          >
             {champion?.name ?? '???'}
           </h1>
-          <p className="text-yellow-300 text-2xl font-semibold">
-            is the Water Champion! 💦
+          <p className="text-xl font-semibold" style={{ color: 'var(--gold-200)' }}>
+            Water Champion! 💦
           </p>
         </div>
 
@@ -69,7 +85,11 @@ export default function HostChampionScreen({ champion, onPlayAgain }) {
             transition={{ type: 'spring', delay: 0.6 }}
             src={champion.avatar_url}
             alt={champion.name}
-            className="w-32 h-32 rounded-full mx-auto ring-4 ring-yellow-400 shadow-2xl"
+            className="w-32 h-32 rounded-full mx-auto shadow-2xl"
+            style={{
+              border: '3px solid var(--gold-400)',
+              boxShadow: '0 0 40px rgba(232,184,74,0.15)',
+            }}
           />
         )}
 
@@ -80,9 +100,14 @@ export default function HostChampionScreen({ champion, onPlayAgain }) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onPlayAgain}
-          className="px-10 py-4 bg-white/10 hover:bg-white/20 text-white font-bold text-xl rounded-2xl border border-white/20 transition-colors"
+          className="px-10 py-4 font-bold text-xl rounded-2xl transition-all"
+          style={{
+            background: 'rgba(232,184,74,0.1)',
+            color: 'var(--gold-400)',
+            border: '1px solid rgba(232,184,74,0.2)',
+          }}
         >
-          🎮 Play Again
+          เล่นอีกครั้ง — Play Again
         </motion.button>
       </motion.div>
     </div>

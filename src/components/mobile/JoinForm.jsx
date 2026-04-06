@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
+import { WaterDrops } from '../ThaiDecor'
 
-/**
- * Name entry form for new mobile players.
- * On submit: creates a player row in DB, saves their UUID to localStorage.
- */
 export default function JoinForm({ roomId, onJoined }) {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -38,16 +35,43 @@ export default function JoinForm({ roomId, onJoined }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh bg-gradient-to-b from-blue-950 to-slate-900 px-6">
+    <div className="sk-bg relative flex flex-col items-center justify-center px-6 overflow-hidden">
+      <WaterDrops count={8} />
+
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm space-y-8 text-center"
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-sm space-y-8 text-center relative z-10"
       >
+        {/* Water drop icon */}
+        <motion.div
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className="select-none"
+        >
+          <svg width="72" height="96" viewBox="0 0 72 96" fill="none" className="mx-auto">
+            <path
+              d="M36 4 C36 4 6 42 6 60 C6 78 19 92 36 92 C53 92 66 78 66 60 C66 42 36 4 36 4Z"
+              fill="url(#joinWater)"
+            />
+            <ellipse cx="28" cy="48" rx="6" ry="10" fill="white" opacity="0.1" transform="rotate(-12 28 48)" />
+            <defs>
+              <linearGradient id="joinWater" x1="36" y1="4" x2="36" y2="92" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#7dd3e8" stopOpacity="0.9" />
+                <stop offset="1" stopColor="#1d7490" stopOpacity="0.9" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </motion.div>
+
         <div className="space-y-2">
-          <div className="text-7xl animate-float select-none">💦</div>
-          <h1 className="text-4xl font-black text-white">Join the Battle!</h1>
-          <p className="text-slate-400">Room <span className="text-cyan-400 font-bold">{roomId}</span></p>
+          <h1 className="text-4xl font-black" style={{ color: 'var(--cream-50)' }}>
+            เข้าร่วมการต่อสู้!
+          </h1>
+          <p className="font-body text-sm" style={{ color: 'var(--cream-400)' }}>
+            Room <span className="font-bold sk-gold-text">{roomId}</span>
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -55,25 +79,41 @@ export default function JoinForm({ roomId, onJoined }) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Enter your name"
+            placeholder="ใส่ชื่อของคุณ — Enter your name"
             maxLength={20}
             autoFocus
-            className="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-2xl text-white text-xl font-semibold placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+            className="w-full px-5 py-4 rounded-2xl text-lg font-semibold placeholder:text-sm focus:outline-none transition-all"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(232,184,74,0.12)',
+              color: 'var(--cream-50)',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(232,184,74,0.3)'
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(232,184,74,0.08)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(232,184,74,0.12)'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
           />
 
           {/* Live avatar preview */}
           {name.trim() && (
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-3"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center gap-3 rounded-2xl px-4 py-3 sk-surface"
             >
               <img
                 src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(name.trim())}`}
                 alt="Your avatar"
-                className="w-12 h-12 rounded-full bg-white/20"
+                className="w-12 h-12 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.06)' }}
               />
-              <span className="text-white font-semibold">{name.trim()}</span>
+              <span className="font-semibold" style={{ color: 'var(--cream-100)' }}>
+                {name.trim()}
+              </span>
             </motion.div>
           )}
 
@@ -82,12 +122,22 @@ export default function JoinForm({ roomId, onJoined }) {
             whileTap={{ scale: 0.97 }}
             type="submit"
             disabled={!name.trim() || loading}
-            className="w-full py-5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-700 disabled:text-slate-500 text-slate-900 font-black text-2xl rounded-2xl transition-colors"
+            className="w-full py-5 font-black text-xl rounded-2xl transition-all disabled:opacity-40"
+            style={name.trim() && !loading ? {
+              background: 'linear-gradient(135deg, var(--gold-500), var(--gold-600))',
+              color: 'var(--twilight-950)',
+              boxShadow: '0 8px 24px rgba(212,152,43,0.2)',
+            } : {
+              background: 'rgba(255,255,255,0.04)',
+              color: 'rgba(245,237,224,0.2)',
+            }}
           >
-            {loading ? '⏳ Joining...' : "Let's Go! 🔫"}
+            {loading ? 'กำลังเข้าร่วม...' : 'ไปเลย! — Let\'s Go!'}
           </motion.button>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && (
+            <p className="text-sm" style={{ color: 'var(--terra-400)' }}>{error}</p>
+          )}
         </form>
       </motion.div>
     </div>

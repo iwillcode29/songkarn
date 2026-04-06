@@ -5,14 +5,6 @@ import { WEAPONS } from '../../lib/gameLogic'
 
 const WEAPON_LIST = Object.entries(WEAPONS).map(([id, w]) => ({ id, ...w }))
 
-/**
- * The 3-weapon pick screen shown to mobile players during the battle phase.
- *
- * On tap:
- *  1. Haptic vibration
- *  2. Lock animation
- *  3. Write choice to the correct column (p1_choice or p2_choice) in the match row
- */
 export default function PickScreen({ match, playerId, player }) {
   const [chosen, setChosen] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -20,13 +12,11 @@ export default function PickScreen({ match, playerId, player }) {
   const isP1 = match.player1_id === playerId
   const existingChoice = isP1 ? match.p1_choice : match.p2_choice
 
-  // If already chosen (e.g. page reload), reflect that
   const locked = chosen ?? existingChoice
 
   async function handlePick(weaponId) {
     if (locked || submitting) return
 
-    // Haptic feedback
     navigator.vibrate?.(50)
 
     setChosen(weaponId)
@@ -39,17 +29,21 @@ export default function PickScreen({ match, playerId, player }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh bg-gradient-to-b from-blue-950 via-cyan-950 to-slate-900 px-6 py-10">
+    <div className="sk-bg flex flex-col items-center justify-center px-6 py-10">
       {/* Player info */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-8 relative z-10">
         <img
           src={player?.avatar_url}
           alt={player?.name}
-          className="w-14 h-14 rounded-full bg-white/20 ring-2 ring-cyan-500"
+          className="w-14 h-14 rounded-full"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '2px solid rgba(232,184,74,0.25)',
+          }}
         />
         <div>
-          <p className="text-slate-400 text-sm">You are</p>
-          <p className="text-white font-bold text-xl">{player?.name}</p>
+          <p className="text-sm font-body" style={{ color: 'var(--cream-400)' }}>You are</p>
+          <p className="font-bold text-xl" style={{ color: 'var(--cream-50)' }}>{player?.name}</p>
         </div>
       </div>
 
@@ -60,11 +54,15 @@ export default function PickScreen({ match, playerId, player }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="w-full max-w-sm space-y-5 text-center"
+            className="w-full max-w-sm space-y-5 text-center relative z-10"
           >
             <div className="space-y-1">
-              <h2 className="text-3xl font-black text-white">Pick Your Weapon!</h2>
-              <p className="text-slate-400">Tap to lock in your choice</p>
+              <h2 className="text-3xl font-black" style={{ color: 'var(--cream-50)' }}>
+                เลือกอาวุธ!
+              </h2>
+              <p className="font-body text-sm" style={{ color: 'var(--cream-400)' }}>
+                Tap to lock in your choice
+              </p>
             </div>
 
             {WEAPON_LIST.map((weapon, i) => (
@@ -73,10 +71,27 @@ export default function PickScreen({ match, playerId, player }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.93 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.94 }}
                 onClick={() => handlePick(weapon.id)}
-                className="w-full py-7 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/20 rounded-3xl flex items-center justify-center gap-4 text-white font-black text-3xl no-select transition-colors"
+                className="w-full py-7 rounded-2xl flex items-center justify-center gap-4 font-black text-3xl no-select transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(232,184,74,0.08)',
+                  color: 'var(--cream-100)',
+                }}
+                onPointerDown={(e) => {
+                  e.currentTarget.style.background = 'rgba(232,184,74,0.08)'
+                  e.currentTarget.style.borderColor = 'rgba(232,184,74,0.2)'
+                }}
+                onPointerUp={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
+                  e.currentTarget.style.borderColor = 'rgba(232,184,74,0.08)'
+                }}
+                onPointerCancel={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
+                  e.currentTarget.style.borderColor = 'rgba(232,184,74,0.08)'
+                }}
               >
                 <span className="text-5xl">{weapon.emoji}</span>
                 <span>{weapon.label}</span>
@@ -89,7 +104,7 @@ export default function PickScreen({ match, playerId, player }) {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', damping: 12 }}
-            className="text-center space-y-6"
+            className="text-center space-y-6 relative z-10"
           >
             <motion.div
               animate={{ rotate: [0, -8, 8, -8, 0] }}
@@ -99,12 +114,14 @@ export default function PickScreen({ match, playerId, player }) {
               {WEAPONS[locked]?.emoji}
             </motion.div>
             <div className="space-y-1">
-              <p className="text-white font-black text-3xl">{WEAPONS[locked]?.label}</p>
-              <p className="text-slate-400 text-lg">Locked in! ✅</p>
+              <p className="font-black text-3xl" style={{ color: 'var(--cream-50)' }}>
+                {WEAPONS[locked]?.label}
+              </p>
+              <p className="text-lg" style={{ color: 'var(--gold-400)' }}>ล็อคแล้ว! ✅</p>
             </div>
-            <div className="flex items-center gap-2 text-slate-500">
-              <span className="animate-pulse text-cyan-500">●</span>
-              <span>Waiting for opponent…</span>
+            <div className="flex items-center gap-2 justify-center">
+              <span className="animate-pulse text-xs" style={{ color: 'var(--water-400)' }}>●</span>
+              <span className="font-body" style={{ color: 'var(--cream-400)' }}>Waiting for opponent…</span>
             </div>
           </motion.div>
         )}

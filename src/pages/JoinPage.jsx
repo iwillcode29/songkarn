@@ -31,16 +31,13 @@ import { useKeyboard } from '../hooks/useKeyboard'
 export default function JoinPage() {
   const { roomId } = useParams()
 
-  // Persisted across page loads: player UUID for this room
   const [playerId, setPlayerId] = useState(
     () => localStorage.getItem(`songkran_player_${roomId}`) ?? null,
   )
 
-  // Shared input ref — written by Joystick (touch) or useKeyboard (WASD), read by useArena
   const joystickRef = useRef({ dx: 0, dy: 0 })
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
 
-  // WASD / arrow keys for desktop users
   useKeyboard(joystickRef)
 
   const { room, loading: roomLoading } = useRoom(roomId)
@@ -52,9 +49,6 @@ export default function JoinPage() {
     [players, playerId],
   )
 
-  // Find this player's match in the current round.
-  // Only one match per player per round at any given time
-  // (rematch reuses the same record, so this is stable).
   const myCurrentMatch = useMemo(() => {
     if (!room || !playerId) return null
     return matches.find(
@@ -64,7 +58,6 @@ export default function JoinPage() {
     )
   }, [matches, room, playerId])
 
-  // ── Phase derivation ─────────────────────────────────────────
   const phase = useMemo(() => {
     if (roomLoading) return 'loading'
     if (!room) return 'invalid'
@@ -72,14 +65,12 @@ export default function JoinPage() {
       return myPlayer?.is_alive ? 'champion' : 'eliminated'
     }
     if (!playerId || !myPlayer) {
-      // Block latecomers from joining a game already in progress
       if (room.status !== 'lobby') return 'invalid'
       return 'joining'
     }
     if (room.status === 'lobby') return 'lobby_wait'
 
-    // room.status === 'playing'
-    if (!myCurrentMatch) return 'lobby_wait' // edge case: match not yet created
+    if (!myCurrentMatch) return 'lobby_wait'
 
     if (myCurrentMatch.is_bye) return 'bye'
 
@@ -90,18 +81,16 @@ export default function JoinPage() {
       return myChoice ? 'choice_locked' : 'picking'
     }
 
-    // match resolved
     if (!myPlayer.is_alive) return 'eliminated'
     if (myCurrentMatch.winner_id === playerId) return 'round_won'
     if (myCurrentMatch.winner_id === null) return 'round_draw'
 
-    // Shouldn't reach here, but safe fallback
     return 'eliminated'
   }, [roomLoading, room, playerId, myPlayer, myCurrentMatch])
 
   // ── Rendering ────────────────────────────────────────────────
 
-  if (phase === 'loading') return <FullScreenMessage emoji="⏳" text="Loading…" />
+  if (phase === 'loading') return <FullScreenMessage emoji="⏳" text="กำลังโหลด…" />
   if (phase === 'invalid') {
     return (
       <FullScreenMessage
@@ -114,12 +103,8 @@ export default function JoinPage() {
   if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
   if (phase === 'champion') return <MobileChampionScreen player={myPlayer} />
 
-  // All other phases share the mobile shell
   return (
-    <div
-      className="flex flex-col items-center justify-center min-h-dvh px-5 py-8"
-      style={{ background: 'linear-gradient(170deg, #1a1033 0%, #1e1340 40%, #0f1729 100%)' }}
-    >
+    <div className="sk-bg flex flex-col items-center justify-center px-5 py-8">
       {/* Player badge */}
       {myPlayer && (
         <div className="flex items-center gap-3 mb-6 w-full max-w-sm">
@@ -127,11 +112,14 @@ export default function JoinPage() {
             src={myPlayer.avatar_url}
             alt={myPlayer.name}
             className="w-10 h-10 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(251,191,36,0.4)' }}
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '2px solid rgba(232,184,74,0.25)',
+            }}
           />
           <div className="flex-1">
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Playing as</p>
-            <p className="text-white font-bold">{myPlayer.name}</p>
+            <p className="text-xs font-body" style={{ color: 'var(--cream-400)' }}>Playing as</p>
+            <p className="font-bold" style={{ color: 'var(--cream-50)' }}>{myPlayer.name}</p>
           </div>
         </div>
       )}
@@ -151,7 +139,8 @@ export default function JoinPage() {
                   ? myCurrentMatch?.p1_choice
                   : myCurrentMatch?.p2_choice
               ]?.emoji ?? '❓'}
-              title="Locked in!"
+              title="ล็อคแล้ว!"
+              titleEn="Locked in!"
               subtitle="Waiting for the reveal…"
               sub2={<PulseDot text="Watching the host screen!" />}
             />
@@ -166,8 +155,11 @@ export default function JoinPage() {
             exit={{ opacity: 0, y: -20 }}
             className="w-full flex flex-col"
           >
-            <p className="text-center font-semibold text-xs mb-2" style={{ color: 'rgba(251,191,36,0.7)' }}>
-              {isTouchDevice ? 'Walk around while waiting!' : 'Use W A S D to walk around!'}
+            <p
+              className="text-center font-semibold text-xs mb-2"
+              style={{ color: 'rgba(232,184,74,0.6)' }}
+            >
+              {isTouchDevice ? 'เดินเล่นระหว่างรอ!' : 'Use W A S D to walk around!'}
             </p>
             <Arena
               roomId={roomId}
@@ -202,10 +194,10 @@ export default function JoinPage() {
           <PhaseWrapper key="won">
             <StatusCard
               emoji="🎉"
-              title="You Won!"
+              title="ชนะ! — You Won!"
               subtitle="Well played! Get ready for the next round."
               sub2={<PulseDot text="Waiting for others to finish…" />}
-              accent="text-green-400"
+              accentColor="var(--water-300)"
             />
           </PhaseWrapper>
         )}
@@ -214,10 +206,10 @@ export default function JoinPage() {
           <PhaseWrapper key="draw">
             <StatusCard
               emoji="⚡"
-              title="It's a Draw!"
+              title="เสมอ! — It's a Draw!"
               subtitle="Sudden death rematch incoming…"
-              sub2={<PulseDot text="Get ready to pick again!" color="text-orange-400" />}
-              accent="text-yellow-400"
+              sub2={<PulseDot text="Get ready to pick again!" />}
+              accentColor="var(--gold-400)"
             />
           </PhaseWrapper>
         )}
@@ -233,10 +225,14 @@ export default function JoinPage() {
                 💦
               </motion.div>
               <div className="space-y-2">
-                <p className="text-3xl font-black text-white">You got splashed! 💦</p>
-                <p className="text-slate-400 text-lg">Better luck next Songkran!</p>
+                <p className="text-3xl font-black" style={{ color: 'var(--cream-50)' }}>
+                  โดนสาดน้ำ! 💦
+                </p>
+                <p className="text-lg font-body" style={{ color: 'var(--cream-400)' }}>
+                  Better luck next Songkran!
+                </p>
               </div>
-              <p className="text-slate-500 text-sm">
+              <p className="text-sm font-body" style={{ color: 'rgba(196,168,122,0.4)' }}>
                 Watch the tournament on the host screen.
               </p>
             </div>
@@ -262,7 +258,7 @@ function PhaseWrapper({ children }) {
   )
 }
 
-function StatusCard({ emoji, title, subtitle, sub2, accent = 'text-cyan-400' }) {
+function StatusCard({ emoji, title, subtitle, sub2, accentColor = 'var(--water-400)' }) {
   return (
     <div className="text-center space-y-5">
       <motion.div
@@ -273,19 +269,19 @@ function StatusCard({ emoji, title, subtitle, sub2, accent = 'text-cyan-400' }) 
         {emoji}
       </motion.div>
       <div className="space-y-2">
-        <h2 className={`text-3xl font-black ${accent}`}>{title}</h2>
-        <p className="text-white text-lg font-semibold">{subtitle}</p>
+        <h2 className="text-3xl font-black" style={{ color: accentColor }}>{title}</h2>
+        <p className="text-lg font-semibold" style={{ color: 'var(--cream-100)' }}>{subtitle}</p>
         {sub2 && <div className="pt-1">{sub2}</div>}
       </div>
     </div>
   )
 }
 
-function PulseDot({ text, color = 'text-slate-400' }) {
+function PulseDot({ text }) {
   return (
-    <div className={`flex items-center justify-center gap-2 ${color}`}>
-      <span className="animate-pulse text-cyan-500 text-xs">●</span>
-      <span className="text-sm">{text}</span>
+    <div className="flex items-center justify-center gap-2">
+      <span className="animate-pulse text-xs" style={{ color: 'var(--water-400)' }}>●</span>
+      <span className="text-sm font-body" style={{ color: 'var(--cream-400)' }}>{text}</span>
     </div>
   )
 }
@@ -298,8 +294,8 @@ function ShootButton({ joystickRef }) {
         width: 52,
         height: 52,
         flexShrink: 0,
-        background: 'radial-gradient(circle, rgba(96,185,220,0.35), rgba(37,99,235,0.2))',
-        border: '1.5px solid rgba(96,185,220,0.35)',
+        background: 'radial-gradient(circle, rgba(74,184,212,0.25), rgba(29,116,144,0.15))',
+        border: '1.5px solid rgba(74,184,212,0.25)',
         fontSize: 22,
       }}
       onPointerDown={(e) => {
@@ -314,10 +310,13 @@ function ShootButton({ joystickRef }) {
 
 function FullScreenMessage({ emoji, text, sub }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh bg-slate-900 text-center px-8 space-y-4">
+    <div
+      className="flex flex-col items-center justify-center min-h-dvh text-center px-8 space-y-4"
+      style={{ background: 'var(--twilight-950)' }}
+    >
       <div className="text-6xl">{emoji}</div>
-      <p className="text-white font-bold text-xl">{text}</p>
-      {sub && <p className="text-slate-500">{sub}</p>}
+      <p className="font-bold text-xl" style={{ color: 'var(--cream-50)' }}>{text}</p>
+      {sub && <p className="font-body" style={{ color: 'var(--cream-400)' }}>{sub}</p>}
     </div>
   )
 }

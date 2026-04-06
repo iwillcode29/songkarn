@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
 import { createBracketPairs } from '../../lib/gameLogic'
 import Arena from '../arena/Arena'
+import { LaiThaiDivider, CornerOrnament } from '../ThaiDecor'
 
 export default function Lobby({ room, players, onClearRoom }) {
   const [starting, setStarting] = useState(false)
@@ -44,11 +45,12 @@ export default function Lobby({ room, players, onClearRoom }) {
   }
 
   return (
-    <div
-      className="min-h-dvh p-6 lg:p-8"
-      style={{ background: 'linear-gradient(170deg, #1a1033 0%, #1e1340 40%, #0f1729 100%)' }}
-    >
-      <div className="max-w-6xl mx-auto space-y-5">
+    <div className="sk-bg relative p-6 lg:p-8 overflow-hidden">
+      {/* Corner ornaments */}
+      <div className="fixed top-3 left-3 z-20"><CornerOrnament position="top-left" size={40} /></div>
+      <div className="fixed top-3 right-3 z-20"><CornerOrnament position="top-right" size={40} /></div>
+
+      <div className="max-w-6xl mx-auto space-y-5 relative z-10">
 
         {/* Header */}
         <motion.div
@@ -56,13 +58,10 @@ export default function Lobby({ room, players, onClearRoom }) {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-baseline gap-3"
         >
-          <h1
-            className="text-3xl lg:text-4xl font-black"
-            style={{ color: '#fbbf24' }}
-          >
+          <h1 className="text-3xl lg:text-4xl font-black sk-gold-text">
             Songkran Tournament
           </h1>
-          <span className="text-2xl">💦</span>
+          <WaterIcon />
         </motion.div>
 
         {/* Top row: QR + Players + Start */}
@@ -73,14 +72,12 @@ export default function Lobby({ room, players, onClearRoom }) {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="rounded-2xl p-6 text-center space-y-4"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.06)',
-            }}
+            className="sk-surface sk-border-top rounded-2xl p-6 text-center space-y-4"
           >
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold" style={{ color: '#d4a052' }}>Scan to Join</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--gold-400)' }}>
+                สแกนเพื่อเข้าร่วม
+              </p>
               <button
                 onClick={async () => {
                   if (clearing) return
@@ -88,43 +85,52 @@ export default function Lobby({ room, players, onClearRoom }) {
                   await onClearRoom()
                 }}
                 disabled={clearing}
-                className="text-xs font-medium px-2.5 py-1 rounded-lg transition-colors"
+                className="text-xs font-medium px-2.5 py-1 rounded-lg transition-all"
                 style={{
-                  color: 'rgba(255,255,255,0.4)',
-                  background: 'rgba(255,255,255,0.05)',
+                  color: 'var(--cream-400)',
+                  background: 'rgba(255,255,255,0.04)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#ef4444'
-                  e.currentTarget.style.background = 'rgba(239,68,68,0.1)'
+                  e.currentTarget.style.color = 'var(--terra-400)'
+                  e.currentTarget.style.background = 'rgba(217,119,85,0.1)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.4)'
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                  e.currentTarget.style.color = 'var(--cream-400)'
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
                 }}
               >
                 {clearing ? 'Clearing...' : 'Clear Room'}
               </button>
             </div>
 
-            <div className="bg-white p-3 rounded-xl inline-block">
-              <QRCodeSVG value={joinUrl} size={160} level="H" includeMargin={false} />
+            <div
+              className="p-3 rounded-xl inline-block"
+              style={{ background: 'var(--cream-50)' }}
+            >
+              <QRCodeSVG
+                value={joinUrl}
+                size={160}
+                level="H"
+                includeMargin={false}
+                fgColor="#13102a"
+                bgColor="#fdfbf5"
+              />
             </div>
 
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            <p className="text-xs font-body" style={{ color: 'rgba(245,237,224,0.3)' }}>
               {joinUrl}
             </p>
 
             <div
               className="rounded-xl py-3 px-5"
               style={{
-                background: 'rgba(251,191,36,0.08)',
-                border: '1px solid rgba(251,191,36,0.15)',
+                background: 'rgba(232,184,74,0.06)',
+                border: '1px solid rgba(232,184,74,0.12)',
               }}
             >
-              <p className="text-xs mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Room Code</p>
+              <p className="text-xs mb-1" style={{ color: 'var(--cream-400)' }}>Room Code</p>
               <p
-                className="text-4xl lg:text-5xl font-black tracking-[0.2em]"
-                style={{ color: '#fbbf24' }}
+                className="text-4xl lg:text-5xl font-black tracking-[0.2em] sk-gold-text"
               >
                 {room.id}
               </p>
@@ -139,13 +145,10 @@ export default function Lobby({ room, players, onClearRoom }) {
             className="space-y-3"
           >
             <div className="flex items-baseline justify-between">
-              <h2 className="text-xl font-bold text-white">
-                Players
+              <h2 className="text-xl font-bold" style={{ color: 'var(--cream-100)' }}>
+                ผู้เล่น — Players
               </h2>
-              <span
-                className="text-sm font-bold tabular-nums"
-                style={{ color: '#fbbf24' }}
-              >
+              <span className="text-sm font-bold tabular-nums sk-gold-text">
                 {players.length} joined
               </span>
             </div>
@@ -159,22 +162,23 @@ export default function Lobby({ room, players, onClearRoom }) {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -16 }}
                     transition={{ delay: i * 0.04 }}
-                    className="flex items-center gap-3 rounded-lg py-2 px-3"
-                    style={{ background: 'rgba(255,255,255,0.04)' }}
+                    className="flex items-center gap-3 rounded-lg py-2 px-3 sk-surface"
                   >
                     <img
                       src={player.avatar_url}
                       alt={player.name}
                       className="w-8 h-8 rounded-full"
-                      style={{ background: 'rgba(255,255,255,0.1)' }}
+                      style={{ background: 'rgba(255,255,255,0.08)' }}
                     />
-                    <span className="font-medium text-sm text-white/90 flex-1">{player.name}</span>
+                    <span className="font-medium text-sm flex-1" style={{ color: 'var(--cream-100)' }}>
+                      {player.name}
+                    </span>
                   </motion.div>
                 ))}
               </AnimatePresence>
 
               {players.length === 0 && (
-                <p className="text-center py-8 text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <p className="text-center py-8 text-sm font-body" style={{ color: 'rgba(245,237,224,0.25)' }}>
                   Waiting for players to scan...
                 </p>
               )}
@@ -187,21 +191,23 @@ export default function Lobby({ room, players, onClearRoom }) {
               disabled={!canStart || starting}
               className="w-full py-3.5 font-bold text-lg rounded-xl transition-all"
               style={canStart && !starting ? {
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#1c1917',
-                boxShadow: '0 4px 16px rgba(245,158,11,0.25)',
+                background: 'linear-gradient(135deg, var(--gold-500), var(--gold-600))',
+                color: 'var(--twilight-950)',
+                boxShadow: '0 4px 16px rgba(212,152,43,0.2)',
               } : {
-                background: 'rgba(255,255,255,0.05)',
-                color: 'rgba(255,255,255,0.3)',
+                background: 'rgba(255,255,255,0.04)',
+                color: 'rgba(245,237,224,0.25)',
                 cursor: 'not-allowed',
               }}
             >
               {starting
                 ? 'Starting...'
                 : canStart
-                ? `Start Tournament`
+                ? 'เริ่มการแข่งขัน — Start Tournament'
                 : 'Need at least 2 players'}
             </motion.button>
+
+            <LaiThaiDivider className="mx-auto mt-2 opacity-30" />
           </motion.div>
         </div>
 
@@ -216,5 +222,18 @@ export default function Lobby({ room, players, onClearRoom }) {
         )}
       </div>
     </div>
+  )
+}
+
+function WaterIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="inline-block">
+      <path
+        d="M14 2 C14 2 4 13 4 18 C4 23.5 8.5 28 14 28 C19.5 28 24 23.5 24 18 C24 13 14 2 14 2Z"
+        fill="var(--water-400)"
+        fillOpacity="0.6"
+      />
+      <ellipse cx="11" cy="14" rx="2.5" ry="4" fill="white" opacity="0.12" transform="rotate(-10 11 14)" />
+    </svg>
   )
 }

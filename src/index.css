@@ -2,12 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Songkran Thai Festival Theme ── */
+
+:root {
+  /* Gold spectrum — inspired by temple leaf */
+  --gold-50: #fef9ed;
+  --gold-100: #fcefc8;
+  --gold-200: #f9dc8c;
+  --gold-400: #e8b84a;
+  --gold-500: #d4982b;
+  --gold-600: #b87a1a;
+  --gold-700: #8f5b12;
+  --gold-900: #4a2d08;
+
+  /* Indigo twilight — Thai evening sky */
+  --twilight-950: #0c0a1a;
+  --twilight-900: #13102a;
+  --twilight-800: #1c1640;
+  --twilight-700: #2a1f5e;
+  --twilight-600: #3b2d7a;
+
+  /* Terracotta — Thai clay, warm accent */
+  --terra-400: #d97755;
+  --terra-500: #c4603d;
+  --terra-600: #a34a2a;
+
+  /* Water — festival blue, cooler accent */
+  --water-300: #7dd3e8;
+  --water-400: #4ab8d4;
+  --water-500: #2a95b3;
+  --water-600: #1d7490;
+
+  /* Jasmine cream */
+  --cream-50: #fdfbf5;
+  --cream-100: #f5ede0;
+  --cream-200: #e8dbc4;
+  --cream-400: #c4a87a;
+}
+
 @layer base {
   html, body, #root {
     min-height: 100dvh;
   }
   body {
-    @apply bg-slate-900 text-white font-sans;
+    font-family: 'Kanit', sans-serif;
+    background: var(--twilight-950);
+    color: var(--cream-100);
+    -webkit-font-smoothing: antialiased;
   }
 }
 
@@ -16,6 +57,79 @@
     -webkit-user-select: none;
     user-select: none;
   }
+}
+
+/* ── Songkran background: layered gradient with subtle Thai pattern ── */
+.sk-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 80%, rgba(216, 119, 85, 0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(74, 184, 212, 0.05) 0%, transparent 70%),
+    linear-gradient(175deg, var(--twilight-900) 0%, var(--twilight-950) 40%, #0a0814 100%);
+  min-height: 100dvh;
+}
+
+/* ── Thai ornamental border — top gold line with lotus wave ── */
+.sk-border-top {
+  position: relative;
+}
+.sk-border-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--gold-400) 15%,
+    var(--gold-200) 50%,
+    var(--gold-400) 85%,
+    transparent 100%
+  );
+  opacity: 0.7;
+}
+
+/* ── Glass surface — warm tinted ── */
+.sk-surface {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(232, 184, 74, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+/* ── Gold shimmer text ── */
+.sk-gold-text {
+  color: var(--gold-400);
+  text-shadow: 0 0 40px rgba(232, 184, 74, 0.15);
+}
+
+/* ── Water ripple keyframes ── */
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 0.6; }
+  50% { transform: scale(1.1); opacity: 0.3; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes drift-down {
+  0% { transform: translateY(-100%) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.7; }
+  90% { opacity: 0.7; }
+  100% { transform: translateY(calc(100vh + 40px)) rotate(15deg); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
 }
 
 /* ── Sprite walk cycle ── */
