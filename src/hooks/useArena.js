@@ -345,8 +345,8 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
           }
           projectilesRef.current.push(proj)
           sfx.shoot()
-          if (connectedRef.current) {
-            channelRef.current?.send({ type: 'broadcast', event: PROJ_EVENT, payload: proj })
+          if (channelRef.current?.state === 'joined') {
+            channelRef.current.send({ type: 'broadcast', event: PROJ_EVENT, payload: proj })
           }
         }
       }
@@ -368,8 +368,8 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
               // Hit signal for flash + splash (shooter sees it immediately)
               hitSignalsRef.current.set(hitId, { time: performance.now(), x: moved.x, y: moved.y })
               if (newHp === 0) eliminationSignalRef.current.time = performance.now()
-              if (connectedRef.current) {
-                channelRef.current?.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
+              if (channelRef.current?.state === 'joined') {
+                channelRef.current.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
               }
               continue // projectile consumed on hit
             }
@@ -387,7 +387,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       if (playerId && now - lastBroadcastRef.current >= BROADCAST_INTERVAL_MS) {
         lastBroadcastRef.current = now
         const pos = positionsRef.current.get(playerId)
-        if (pos && channelRef.current && connectedRef.current) {
+        if (pos && channelRef.current?.state === 'joined') {
           seqRef.current++
           channelRef.current.send({
             type: 'broadcast',
