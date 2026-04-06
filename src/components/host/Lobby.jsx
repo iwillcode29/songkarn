@@ -4,15 +4,11 @@ import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
 import { createBracketPairs } from '../../lib/gameLogic'
 import Arena from '../arena/Arena'
-import { useVoiceChat } from '../../hooks/useVoiceChat'
 
 export default function Lobby({ room, players, onClearRoom }) {
   const [starting, setStarting] = useState(false)
   const [clearing, setClearing] = useState(false)
-  // Host listens to voice (mic off, but receives all players' audio)
-  const { activeSpeakers } = useVoiceChat({ roomId: room.id, peerId: `host-${room.id}`, micEnabled: false })
   const joinUrl = `${window.location.origin}/join/${room.id}`
-  const listenUrl = `${window.location.origin}/listen/${room.id}`
   const canStart = players.length >= 2
 
   async function handleStartGame() {
@@ -118,16 +114,6 @@ export default function Lobby({ room, players, onClearRoom }) {
               {joinUrl}
             </p>
 
-            <a
-              href={listenUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-xs py-2 px-3 rounded-lg transition-colors"
-              style={{ color: '#67e8f9', background: 'rgba(103,232,249,0.08)', border: '1px solid rgba(103,232,249,0.15)' }}
-            >
-              🔊 Listen link (ได้ยินเสียงอย่างเดียว)
-            </a>
-
             <div
               className="rounded-xl py-3 px-5"
               style={{
@@ -183,11 +169,6 @@ export default function Lobby({ room, players, onClearRoom }) {
                       style={{ background: 'rgba(255,255,255,0.1)' }}
                     />
                     <span className="font-medium text-sm text-white/90 flex-1">{player.name}</span>
-                    {activeSpeakers.has(player.id) && (
-                      <span className="text-xs" style={{ color: '#4ade80' }} title="Mic on">
-                        🎙️
-                      </span>
-                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>

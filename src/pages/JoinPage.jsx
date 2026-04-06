@@ -10,9 +10,7 @@ import PickScreen from '../components/mobile/PickScreen'
 import MobileChampionScreen from '../components/mobile/MobileChampionScreen'
 import Arena from '../components/arena/Arena'
 import Joystick from '../components/arena/Joystick'
-import MicButton from '../components/arena/MicButton'
 import { useKeyboard } from '../hooks/useKeyboard'
-import { useVoiceChat } from '../hooks/useVoiceChat'
 
 /**
  * JoinPage drives the entire mobile player experience.
@@ -44,10 +42,6 @@ export default function JoinPage() {
 
   // WASD / arrow keys for desktop users
   useKeyboard(joystickRef)
-
-  // Voice chat — send mic + receive others' audio
-  const [micEnabled, setMicEnabled] = useState(false)
-  useVoiceChat({ roomId, peerId: playerId, micEnabled })
 
   const { room, loading: roomLoading } = useRoom(roomId)
   const { players } = usePlayers(roomId)
@@ -126,7 +120,7 @@ export default function JoinPage() {
       className="flex flex-col items-center justify-center min-h-dvh px-5 py-8"
       style={{ background: 'linear-gradient(170deg, #1a1033 0%, #1e1340 40%, #0f1729 100%)' }}
     >
-      {/* Player badge + mic */}
+      {/* Player badge */}
       {myPlayer && (
         <div className="flex items-center gap-3 mb-6 w-full max-w-sm">
           <img
@@ -139,9 +133,6 @@ export default function JoinPage() {
             <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Playing as</p>
             <p className="text-white font-bold">{myPlayer.name}</p>
           </div>
-          {phase === 'lobby_wait' && (
-            <MicButton active={micEnabled} onToggle={() => setMicEnabled((v) => !v)} />
-          )}
         </div>
       )}
 
