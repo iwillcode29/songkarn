@@ -87,6 +87,11 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
       config: { broadcast: { self: false } },
     })
 
+    // Guard: Supabase throws if presence callbacks are added to an already-joined
+    // channel (can happen with React StrictMode's double-effect invocation).
+    // If the channel was already joined, skip setup — the cleanup will remove it.
+    if (channel.state === 'joined' || channel.state === 'joining') return
+
     channel
       .on('broadcast', { event: PROJ_EVENT }, ({ payload }) => {
         if (!payload) return
@@ -102,7 +107,6 @@ export function useArena({ roomId, playerId, players, joystickRef }) {
         const prev = targetsRef.current.get(payload.playerId)
         if (prev && payload.seq <= (prev._seq ?? 0)) return
 
-        // Write to targets — the RAF loop will lerp rendered positions toward this
         targetsRef.current.set(payload.playerId, {
           x: payload.x,
           y: payload.y,
