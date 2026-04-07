@@ -23,12 +23,11 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
     if (positionsMapRef) positionsMapRef.current = positionsRef.current
   })
 
-  // Expose own player's position so parent can read it (e.g. for quiz zone report)
-  useEffect(() => {
-    if (selfPositionRef && playerId) {
-      selfPositionRef.current = positionsRef.current.get(playerId) ?? null
-    }
-  })
+  // Expose own player's position so parent can read it (e.g. for quiz zone report).
+  // Set synchronously (not just in useEffect) so it's available immediately on mount.
+  if (selfPositionRef && playerId) {
+    selfPositionRef.current = positionsRef.current.get(playerId) ?? null
+  }
 
   useEffect(() => {
     const el = containerRef.current

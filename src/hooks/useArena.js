@@ -64,6 +64,7 @@ function acquireArenaChannel(roomId) {
   })
   if (existing) {
     // Entry was pre-created by the hook body — attach the channel, keep existing refs
+    if (existing.destroyTimer) { clearTimeout(existing.destroyTimer); existing.destroyTimer = null }
     existing.channel = channel
     existing.refCount = 1
     existing.listenersAttached = false
@@ -78,9 +79,9 @@ function releaseArenaChannel(roomId) {
   if (!entry) return
   entry.refCount--
   if (entry.refCount <= 0) {
+    // Clear any pending timer before setting a new one
+    if (entry.destroyTimer) clearTimeout(entry.destroyTimer)
     // Delay destroy by 1s so lobby→quiz remount can reuse the same channel.
-    // React unmounts old Arena before mounting new one — without this delay
-    // the channel would be destroyed in the gap between unmount and mount.
     entry.destroyTimer = setTimeout(() => {
       const current = arenaChannels.get(roomId)
       if (current && current.refCount <= 0) {
