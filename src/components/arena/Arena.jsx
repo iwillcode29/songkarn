@@ -13,7 +13,7 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
-  const { positionsRef, targetsRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef, bottleRef, bottleHealRef, chatBubblesRef, channelRef } = useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit })
+  const { positionsRef, targetsRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef, chatBubblesRef, channelRef } = useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit })
 
   // Splash popup pool — ephemeral, RAF-driven
   const splashPoolRef = useRef([])
@@ -141,16 +141,6 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
             chatTime={chatTime}
           />
         ))}
-
-        {/* HP Bottle pickup */}
-        {bottleRef.current?.active && (
-          <BottlePickup x={bottleRef.current.x} y={bottleRef.current.y} now={now} />
-        )}
-
-        {/* Bottle heal popup — +10 floating text */}
-        {bottleHealRef.current.time > 0 && now - bottleHealRef.current.time < 800 && (
-          <HealPopup x={bottleHealRef.current.x} y={bottleHealRef.current.y} born={bottleHealRef.current.time} now={now} />
-        )}
 
         {/* Projectiles — pixel water drops */}
         {projectilesRef.current.map((proj) => (
@@ -563,139 +553,6 @@ function PixelSplash({ x, y, size }) {
     </svg>
   )
 }
-
-/* ─── Heal popup — "+10" that floats up and fades ─── */
-function HealPopup({ x, y, born, now }) {
-  const age = (now - born) / 800
-  const opacity = Math.max(0, 1 - age)
-  return (
-    <div
-      className="absolute pointer-events-none select-none"
-      style={{
-        top: 0,
-        left: 0,
-        transform: `translate3d(${Math.round(x - 14)}px, ${Math.round(y - 16 - 30 * age)}px, 0)`,
-        fontSize: 11,
-        fontWeight: 'bold',
-        fontFamily: 'monospace',
-        color: '#4ade80',
-        textShadow: '0 1px 2px rgba(0,0,0,0.6)',
-        opacity,
-        willChange: 'transform, opacity',
-      }}
-    >
-      +10 HP
-    </div>
-  )
-}
-
-/* ─── Bottle pickup — compound: ground glow + sparkles + bottle ─── */
-function BottlePickup({ x, y, now }) {
-  const bobY = Math.sin(now * 0.004) * 3
-  const pulse = 0.4 + Math.sin(now * 0.005) * 0.25 // 0.15–0.65
-  const sparklePhase = now * 0.002
-
-  return (
-    <div
-      className="absolute pointer-events-none select-none"
-      style={{ top: 0, left: 0, transform: `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`, willChange: 'transform' }}
-    >
-      {/* Ground glow — pulsing ellipse */}
-      <svg
-        width={40} height={16}
-        viewBox="0 0 40 16"
-        style={{ position: 'absolute', transform: 'translate3d(-20px, 4px, 0)', opacity: pulse, willChange: 'opacity' }}
-      >
-        <ellipse cx={20} cy={8} rx={18} ry={7} fill="#4ade80" opacity={0.35} />
-        <ellipse cx={20} cy={8} rx={12} ry={5} fill="#4ade80" opacity={0.25} />
-        <ellipse cx={20} cy={8} rx={6} ry={3} fill="#86efac" opacity={0.3} />
-      </svg>
-
-      {/* Orbiting sparkle pixels */}
-      {SPARKLE_OFFSETS.map((s, i) => {
-        const angle = sparklePhase + s.phase
-        const sx = Math.cos(angle) * s.r
-        const sy = Math.sin(angle) * s.r * 0.5 // squashed orbit
-        const sparkleOpacity = 0.4 + Math.sin(now * 0.008 + i * 2) * 0.4
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              transform: `translate3d(${Math.round(sx - 1)}px, ${Math.round(sy - 16 + bobY - 1)}px, 0)`,
-              width: 3,
-              height: 3,
-              background: s.color,
-              opacity: sparkleOpacity,
-              imageRendering: 'pixelated',
-              willChange: 'transform, opacity',
-            }}
-          />
-        )
-      })}
-
-      {/* Bottle — larger, with bob */}
-      <svg
-        width={20} height={30}
-        viewBox="0 0 8 12"
-        shapeRendering="crispEdges"
-        style={{
-          imageRendering: 'pixelated',
-          position: 'absolute',
-          transform: `translate3d(-10px, ${Math.round(-28 + bobY)}px, 0)`,
-          willChange: 'transform',
-        }}
-      >
-        {/* Cap */}
-        <rect x={3} y={0} width={2} height={1} fill="#6b3a1a" />
-        {/* Neck */}
-        <rect x={3} y={1} width={2} height={1} fill="#c44030" />
-        <rect x={3} y={2} width={2} height={1} fill="#b83828" />
-        {/* Body top */}
-        <rect x={2} y={3} width={4} height={1} fill="#e04838" />
-        <rect x={1} y={4} width={6} height={1} fill="#e04838" />
-        <rect x={1} y={5} width={6} height={1} fill="#d43830" />
-        {/* Label */}
-        <rect x={1} y={6} width={6} height={1} fill="#fde68a" />
-        <rect x={1} y={7} width={6} height={1} fill="#f59e0b" />
-        {/* Body bottom */}
-        <rect x={1} y={8} width={6} height={1} fill="#d43830" />
-        <rect x={1} y={9} width={6} height={1} fill="#c44030" />
-        <rect x={2} y={10} width={4} height={1} fill="#b83828" />
-        {/* Base */}
-        <rect x={2} y={11} width={4} height={1} fill="#8b2020" />
-        {/* Highlight */}
-        <rect x={2} y={4} width={1} height={2} fill="#f06858" />
-        <rect x={3} y={3} width={1} height={1} fill="#f06858" />
-      </svg>
-
-      {/* HP label — pixel tag below bottle */}
-      <div
-        style={{
-          position: 'absolute',
-          left: -12,
-          top: 6,
-          fontSize: 7,
-          fontWeight: 'bold',
-          fontFamily: 'monospace',
-          color: '#4ade80',
-          textShadow: '0 0 4px rgba(74,222,128,0.6), 0 1px 1px rgba(0,0,0,0.8)',
-          letterSpacing: '0.5px',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        +10 HP
-      </div>
-    </div>
-  )
-}
-
-const SPARKLE_OFFSETS = [
-  { r: 14, phase: 0, color: '#fde68a' },
-  { r: 16, phase: Math.PI * 0.66, color: '#86efac' },
-  { r: 13, phase: Math.PI * 1.33, color: '#fbbf24' },
-  { r: 15, phase: Math.PI * 0.33, color: '#4ade80' },
-]
 
 /* ─── Pixel temple gate — background prop ─── */
 function PixelTempleGate({ x, y, size }) {
