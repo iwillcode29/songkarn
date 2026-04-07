@@ -604,7 +604,7 @@ function BottlePickup({ x, y, now }) {
       <svg
         width={40} height={16}
         viewBox="0 0 40 16"
-        style={{ position: 'absolute', left: -20, top: 4, opacity: pulse }}
+        style={{ position: 'absolute', transform: 'translate3d(-20px, 4px, 0)', opacity: pulse, willChange: 'opacity' }}
       >
         <ellipse cx={20} cy={8} rx={18} ry={7} fill="#4ade80" opacity={0.35} />
         <ellipse cx={20} cy={8} rx={12} ry={5} fill="#4ade80" opacity={0.25} />
@@ -622,13 +622,13 @@ function BottlePickup({ x, y, now }) {
             key={i}
             style={{
               position: 'absolute',
-              left: sx - 1,
-              top: sy - 16 + bobY - 1,
+              transform: `translate3d(${Math.round(sx - 1)}px, ${Math.round(sy - 16 + bobY - 1)}px, 0)`,
               width: 3,
               height: 3,
               background: s.color,
               opacity: sparkleOpacity,
               imageRendering: 'pixelated',
+              willChange: 'transform, opacity',
             }}
           />
         )
@@ -642,8 +642,8 @@ function BottlePickup({ x, y, now }) {
         style={{
           imageRendering: 'pixelated',
           position: 'absolute',
-          left: -10,
-          top: -28 + bobY,
+          transform: `translate3d(-10px, ${Math.round(-28 + bobY)}px, 0)`,
+          willChange: 'transform',
         }}
       >
         {/* Cap */}
