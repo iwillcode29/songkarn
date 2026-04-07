@@ -48,7 +48,7 @@ function createSharedRefs() {
 
 function acquireArenaChannel(roomId) {
   const existing = arenaChannels.get(roomId)
-  if (existing && existing.channel.state !== 'closed' && existing.channel.state !== 'leaving') {
+  if (existing?.channel && existing.channel.state !== 'closed' && existing.channel.state !== 'leaving') {
     existing.refCount++
     // Cancel pending destroy if Arena remounts quickly (lobby → quiz)
     if (existing.destroyTimer) {
@@ -60,7 +60,14 @@ function acquireArenaChannel(roomId) {
   const channel = supabase.channel(`arena:${roomId}`, {
     config: { broadcast: { self: false } },
   })
-  arenaChannels.set(roomId, { channel, refCount: 1, listenersAttached: false, destroyTimer: null, refs: createSharedRefs() })
+  if (existing) {
+    // Entry was pre-created by the hook body — attach the channel, keep existing refs
+    existing.channel = channel
+    existing.refCount = 1
+    existing.listenersAttached = false
+  } else {
+    arenaChannels.set(roomId, { channel, refCount: 1, listenersAttached: false, destroyTimer: null, refs: createSharedRefs() })
+  }
   return channel
 }
 
@@ -107,6 +114,12 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   // Shared refs survive Arena remounts (lobby → quiz) via the module-level
   // channel cache, so broadcast listeners always write to the same Maps that
   // the current RAF loop reads from.
+  // Pre-create the refs entry (without acquiring the channel) so spawn effects
+  // on the first render write into the same Maps that the channel effect will
+  // later attach broadcast listeners to.
+  if (roomId && !arenaChannels.has(roomId)) {
+    arenaChannels.set(roomId, { channel: null, refCount: 0, listenersAttached: false, destroyTimer: null, refs: createSharedRefs() })
+  }
   const entry = arenaChannels.get(roomId)
   const shared = entry?.refs ?? createSharedRefs()
 
