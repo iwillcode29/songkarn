@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, memo } from 'react'
+import { useRef, useEffect, useState, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import { useArena } from '../../hooks/useArena'
 import { WORLD_WIDTH, WORLD_HEIGHT, MAX_HP } from '../../lib/arena/physics'
@@ -41,7 +41,7 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
   }, [])
 
   // Stable palette index based on join order (not filtered renderList index)
-  const playerIndexMap = new Map(players.map((p, i) => [p.id, i]))
+  const playerIndexMap = useMemo(() => new Map(players.map((p, i) => [p.id, i])), [players])
 
   const renderList = []
   if (positionsRef.current) {
@@ -65,8 +65,14 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
       splashPoolRef.current.push({ id: key, x: signal.x, y: signal.y, born: signal.time })
     }
   }
-  // GC old splashes + old seen keys
-  splashPoolRef.current = splashPoolRef.current.filter(s => now - s.born < 600)
+  // GC old splashes + old seen keys (in-place compaction, no allocation)
+  if (splashPoolRef.current.length > 0) {
+    let w = 0
+    for (let i = 0; i < splashPoolRef.current.length; i++) {
+      if (now - splashPoolRef.current[i].born < 600) splashPoolRef.current[w++] = splashPoolRef.current[i]
+    }
+    splashPoolRef.current.length = w
+  }
   if (splashSeenRef.current.size > 200) splashSeenRef.current.clear()
 
   // Host screen shake on elimination only (not on mobile)

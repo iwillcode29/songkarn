@@ -26,39 +26,38 @@ export function getSpawnPosition(index, total) {
 
 /**
  * Advance a player's position by (dirX, dirY) * speed * dt.
- * Clamps to world bounds. Returns a new object.
+ * Clamps to world bounds. Mutates `pos` in place for performance.
  */
 export function tickPlayer(pos, dirX, dirY, deltaMs) {
   const dt = deltaMs / 1000
   const mag = Math.sqrt(dirX * dirX + dirY * dirY)
-  if (mag === 0) return { ...pos, isMoving: false }
+  if (mag === 0) { pos.isMoving = false; return }
 
   // Normalize so diagonal isn't faster
   const nx = dirX / mag
   const ny = dirY / mag
 
-  let x = pos.x + nx * MOVE_SPEED * dt
-  let y = pos.y + ny * MOVE_SPEED * dt
-
-  // Clamp to world bounds
-  x = Math.max(PLAYER_RADIUS, Math.min(WORLD_WIDTH - PLAYER_RADIUS, x))
-  y = Math.max(PLAYER_RADIUS, Math.min(WORLD_HEIGHT - PLAYER_RADIUS, y))
-
-  return { x, y, facing: directionToFacing(nx, ny), isMoving: true }
+  pos.x = Math.max(PLAYER_RADIUS, Math.min(WORLD_WIDTH - PLAYER_RADIUS, pos.x + nx * MOVE_SPEED * dt))
+  pos.y = Math.max(PLAYER_RADIUS, Math.min(WORLD_HEIGHT - PLAYER_RADIUS, pos.y + ny * MOVE_SPEED * dt))
+  pos.facing = directionToFacing(nx, ny)
+  pos.isMoving = true
 }
 
 /**
  * Circle-based collision: push overlapping players apart equally.
  * Mutates the map values in place for performance.
+ * Uses a reusable buffer to avoid allocating a new array every frame.
  */
+const _collisionBuf = []
 export function resolveCollisions(posMap) {
-  const entries = [...posMap.entries()]
+  _collisionBuf.length = 0
+  for (const val of posMap.values()) _collisionBuf.push(val)
   const minDist = PLAYER_RADIUS * 2
 
-  for (let i = 0; i < entries.length; i++) {
-    for (let j = i + 1; j < entries.length; j++) {
-      const a = entries[i][1]
-      const b = entries[j][1]
+  for (let i = 0; i < _collisionBuf.length; i++) {
+    for (let j = i + 1; j < _collisionBuf.length; j++) {
+      const a = _collisionBuf[i]
+      const b = _collisionBuf[j]
       const dx = b.x - a.x
       const dy = b.y - a.y
       const dist = Math.sqrt(dx * dx + dy * dy)
@@ -95,9 +94,10 @@ export function facingToVelocity(facing) {
   }
 }
 
-/** Advance a projectile by dt milliseconds. Returns new object. */
+/** Advance a projectile by dt milliseconds. Mutates in place. */
 export function tickProjectile(proj, dt) {
-  return { ...proj, x: proj.x + proj.vx * dt / 1000, y: proj.y + proj.vy * dt / 1000 }
+  proj.x += proj.vx * dt / 1000
+  proj.y += proj.vy * dt / 1000
 }
 
 /** True if the projectile has left the world bounds. */

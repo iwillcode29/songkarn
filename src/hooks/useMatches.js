@@ -17,7 +17,11 @@ export function useMatches(roomId) {
       .select('*')
       .eq('room_id', roomId)
       .order('created_at', { ascending: true })
-    if (!error) setMatches(data ?? [])
+    if (!error) setMatches(prev => {
+      const next = data ?? []
+      if (prev.length === next.length && prev.every((m, i) => m.id === next[i].id && m.status === next[i].status && m.p1_choice === next[i].p1_choice && m.p2_choice === next[i].p2_choice && m.winner_id === next[i].winner_id)) return prev
+      return next
+    })
     setLoading(false)
   }, [roomId])
 

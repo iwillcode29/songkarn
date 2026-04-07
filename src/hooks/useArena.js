@@ -48,7 +48,7 @@ function createSharedRefs() {
 
 function acquireArenaChannel(roomId) {
   const existing = arenaChannels.get(roomId)
-  if (existing && existing.channel.state !== 'closed') {
+  if (existing && existing.channel.state !== 'closed' && existing.channel.state !== 'leaving') {
     existing.refCount++
     // Cancel pending destroy if Arena remounts quickly (lobby → quiz)
     if (existing.destroyTimer) {
@@ -260,7 +260,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
             setTimeout(() => {
               // Guard: channel may have been released during the delay
               const entry = arenaChannels.get(roomId)
-              if (!entry || entry.channel.state === 'closed') return
+              if (!entry || entry.channel.state === 'closed' || entry.channel.state === 'leaving') return
               const currentState = entry.channel.presenceState()
               const stillOnline = new Set()
               for (const key of Object.keys(currentState)) {
@@ -272,7 +272,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
               if (confirmedLeft.length > 0) {
                 supabase.from('players').delete().in('id', confirmedLeft)
               }
-            }, 5000)
+            }, 30000) // 30s grace — mobile WiFi can drop for 10-20s in party venues
           }
         })
         .subscribe(async (status) => {
@@ -328,29 +328,28 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
         const { dx, dy } = frozenRef.current ? { dx: 0, dy: 0 } : joystickRef.current
         const prev = positionsRef.current.get(playerId)
         if (prev) {
-          const next = tickPlayer(prev, dx, dy, dt)
-          positionsRef.current.set(playerId, { ...next, _seq: prev._seq })
-          // Own target = own position (no lerp for self)
-          targetsRef.current.set(playerId, { ...next, _seq: prev._seq })
+          tickPlayer(prev, dx, dy, dt)
+          // Sync target to own position (no lerp for self)
+          const t = targetsRef.current.get(playerId)
+          if (t) { t.x = prev.x; t.y = prev.y; t.facing = prev.facing; t.isMoving = prev.isMoving }
+          else targetsRef.current.set(playerId, { x: prev.x, y: prev.y, facing: prev.facing, isMoving: prev.isMoving, _seq: prev._seq })
         }
       }
 
-      // 2. Lerp remote players toward their broadcast targets
+      // 2. Lerp remote players toward their broadcast targets (mutate in place)
       for (const [id, target] of targetsRef.current) {
         if (id === playerId) continue // skip self — already handled above
         const current = positionsRef.current.get(id)
         if (!current) {
           // First time seeing this player — snap to target
-          positionsRef.current.set(id, { ...target })
+          positionsRef.current.set(id, { x: target.x, y: target.y, facing: target.facing, isMoving: target.isMoving, _seq: target._seq })
           continue
         }
-        positionsRef.current.set(id, {
-          x: lerp(current.x, target.x, lerpT),
-          y: lerp(current.y, target.y, lerpT),
-          facing: target.facing,
-          isMoving: target.isMoving,
-          _seq: target._seq,
-        })
+        current.x = lerp(current.x, target.x, lerpT)
+        current.y = lerp(current.y, target.y, lerpT)
+        current.facing = target.facing
+        current.isMoving = target.isMoving
+        current._seq = target._seq
       }
 
       // 3. Collision only on mobile (host just displays)
@@ -383,21 +382,23 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       }
 
       // 3.6. Tick projectiles — owner checks hits, everyone moves them
-      if (projectilesRef.current.length > 0) {
-        const surviving = []
-        for (const proj of projectilesRef.current) {
-          const moved = tickProjectile(proj, dt)
-          if (isProjectileOutOfBounds(moved)) continue
+      // In-place compaction: no intermediate array, no spread
+      {
+        const projs = projectilesRef.current
+        let writeIdx = 0
+        for (let i = 0; i < projs.length; i++) {
+          const proj = projs[i]
+          tickProjectile(proj, dt) // mutates in place
+          if (isProjectileOutOfBounds(proj)) continue
 
           // Only the shooter detects hits (avoids duplicate damage broadcasts)
-          if (playerId && moved.ownerId === playerId) {
-            const hitId = checkProjectileHit(moved, positionsRef.current, playerId)
+          if (playerId && proj.ownerId === playerId) {
+            const hitId = checkProjectileHit(proj, positionsRef.current, playerId)
             if (hitId) {
               const cur = hpRef.current.get(hitId) ?? MAX_HP
               const newHp = Math.max(0, cur - 1)
               hpRef.current.set(hitId, newHp)
-              // Hit signal for flash + splash (shooter sees it immediately)
-              hitSignalsRef.current.set(hitId, { time: performance.now(), x: moved.x, y: moved.y })
+              hitSignalsRef.current.set(hitId, { time: performance.now(), x: proj.x, y: proj.y })
               if (newHp === 0) eliminationSignalRef.current.time = performance.now()
               if (channelRef.current?.state === 'joined') {
                 channelRef.current.send({ type: 'broadcast', event: DMG_EVENT, payload: { targetId: hitId } })
@@ -406,12 +407,9 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
             }
           }
 
-          surviving.push(moved)
+          projs[writeIdx++] = proj
         }
-        // Mutate the shared array in place so the broadcast listener's
-        // reference (r.projectiles) stays valid.
-        projectilesRef.current.length = 0
-        projectilesRef.current.push(...surviving)
+        projs.length = writeIdx
       }
 
       // 4. Broadcast own position — adaptive rate + delta suppression
@@ -460,6 +458,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       usingInterval = false
       if (intervalRef.id) { clearInterval(intervalRef.id); intervalRef.id = null }
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      lastTimeRef.current = null // reset so first tick gets a clean dt
       rafRef.current = requestAnimationFrame(tick)
     }
 
@@ -467,6 +466,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       usingInterval = true
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
       if (intervalRef.id) clearInterval(intervalRef.id)
+      lastTimeRef.current = null // reset so first tick gets a clean dt
       intervalRef.id = setInterval(() => tick(performance.now()), 100) // 10fps fallback
     }
 

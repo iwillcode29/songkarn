@@ -61,6 +61,7 @@ export default function JoinPage() {
   playerIdRef.current = playerId
 
   // Quiz broadcast channel — stable per roomId (reads playerId from ref, not closure)
+  const quizChRef = useRef(null) // always points to the live quiz channel
   useEffect(() => {
     if (!roomId) return
     let ch = null
@@ -68,13 +69,15 @@ export default function JoinPage() {
 
     function createChannel() {
       ch = supabase.channel(`quiz:${roomId}`, { config: { broadcast: { self: false } } })
+      quizChRef.current = ch
       ch.on('broadcast', { event: 'quiz-reveal' }, ({ payload }) => {
         if (payload?.correct) {
           setQuizReveal(payload.correct)
           const pid = playerIdRef.current
           if (pid && myPositionRef.current) {
             const pos = myPositionRef.current
-            ch.send({
+            // Use ref to always send via the live channel (not a stale closure)
+            quizChRef.current?.send({
               type: 'broadcast', event: 'quiz-pos',
               payload: { playerId: pid, x: pos.x, y: pos.y },
             })

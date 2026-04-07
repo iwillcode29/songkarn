@@ -16,7 +16,10 @@ export function useRoom(roomId) {
       .select('*')
       .eq('id', roomId)
       .single()
-    if (!error) setRoom(data)
+    if (!error) setRoom(prev => {
+      if (prev && data && prev.status === data.status && prev.current_round === data.current_round && prev.game_mode === data.game_mode) return prev
+      return data
+    })
     setLoading(false)
   }, [roomId])
 
