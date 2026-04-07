@@ -483,18 +483,28 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       intervalRef.id = setInterval(() => tick(performance.now()), 100) // 10fps fallback
     }
 
+    // Switch to interval fallback when window is hidden OR loses focus.
+    // Browsers throttle RAF in unfocused windows (even if visible on screen),
+    // so we need both visibilitychange AND blur/focus to handle all cases.
     function onVisibility() {
-      if (document.visibilityState === 'visible') startRAF()
+      if (document.visibilityState === 'visible' && document.hasFocus()) startRAF()
       else startInterval()
     }
+    function onFocus() { startRAF() }
+    function onBlur() { startInterval() }
 
     document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('blur', onBlur)
+
     // Start with the appropriate mode
-    if (document.visibilityState === 'visible') startRAF()
+    if (document.visibilityState === 'visible' && document.hasFocus()) startRAF()
     else startInterval()
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('blur', onBlur)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       if (intervalRef.id) clearInterval(intervalRef.id)
       lastTimeRef.current = null
