@@ -10,6 +10,9 @@ export const MOVE_SPEED = 150 // logical px per second
 export const MAX_HP = 50
 export const PROJECTILE_SPEED = 300 // logical px per second
 export const PROJECTILE_RADIUS = 5
+export const BOTTLE_RADIUS = 10
+export const BOTTLE_HP = 10
+export const BOTTLE_SPAWN_MS = 10000 // 10 seconds
 
 /**
  * Deterministic spawn positions so every client places players identically.
@@ -131,6 +134,19 @@ export function getZoneForPosition(x, y) {
   if (x >= midX && y < midY) return 'b'
   if (x < midX && y >= midY) return 'c'
   return 'd'
+}
+
+/**
+ * Deterministic bottle spawn position from a spawn index.
+ * Uses Knuth's multiplicative hash so all clients agree on position.
+ */
+export function bottlePosition(index) {
+  const MARGIN = 40
+  let h = ((index + 1) * 2654435761) >>> 0
+  const x = MARGIN + (h % (WORLD_WIDTH - MARGIN * 2))
+  h = ((h >>> 16) ^ (h * 48271)) >>> 0
+  const y = MARGIN + (h % (WORLD_HEIGHT - MARGIN * 2))
+  return { x, y }
 }
 
 /**
