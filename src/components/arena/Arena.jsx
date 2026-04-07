@@ -9,11 +9,11 @@ import Character from './Character'
  * Scales the logical world (800×450) to fit any container.
  * All scenery uses crisp SVG pixel art — no emoji.
  */
-export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, selfPositionRef, frozen, onSelfHit }) {
+export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, selfPositionRef, frozen, onSelfHit, chatChannelRef, chatBubblesMapRef }) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
-  const { positionsRef, targetsRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef } = useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit })
+  const { positionsRef, targetsRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef, bottleRef, bottleHealRef, chatBubblesRef, channelRef } = useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit })
 
   // Splash popup pool — ephemeral, RAF-driven
   const splashPoolRef = useRef([])
@@ -29,6 +29,10 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
     selfPositionRef.current = positionsRef.current.get(playerId) ?? null
   }
 
+  // Expose arena channel and chat bubbles map so parent can send chat messages
+  if (chatChannelRef) chatChannelRef.current = channelRef.current
+  if (chatBubblesMapRef) chatBubblesMapRef.current = chatBubblesRef.current
+
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -42,21 +46,27 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
   // Stable palette index based on join order (not filtered renderList index)
   const playerIndexMap = useMemo(() => new Map(players.map((p, i) => [p.id, i])), [players])
 
+  const now = performance.now()
+
   const renderList = []
   if (positionsRef.current) {
     for (const p of players) {
       const pos = positionsRef.current.get(p.id)
-      if (pos) renderList.push({
-        id: p.id, name: p.name, ...pos, isSelf: p.id === playerId,
-        hp: hpRef.current.get(p.id) ?? MAX_HP,
-        hitTime: hitSignalsRef.current.get(p.id)?.time ?? 0,
-        stableIndex: playerIndexMap.get(p.id) ?? 0,
-      })
+      if (pos) {
+        const chat = chatBubblesRef.current.get(p.id)
+        renderList.push({
+          id: p.id, name: p.name, ...pos, isSelf: p.id === playerId,
+          hp: hpRef.current.get(p.id) ?? MAX_HP,
+          hitTime: hitSignalsRef.current.get(p.id)?.time ?? 0,
+          stableIndex: playerIndexMap.get(p.id) ?? 0,
+          chatText: chat && now - chat.time < 3000 ? chat.text : null,
+          chatTime: chat?.time ?? 0,
+        })
+      }
     }
   }
 
   // Ingest new splash popups from hit signals
-  const now = performance.now()
   for (const [id, signal] of hitSignalsRef.current) {
     const key = `${id}-${signal.time}`
     if (now - signal.time < 50 && !splashSeenRef.current.has(key)) {
@@ -115,7 +125,7 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
         {quizOverlay}
 
         {/* Characters */}
-        {renderList.map(({ id, name, x, y, facing, isMoving, isSelf, hp, hitTime, stableIndex }) => (
+        {renderList.map(({ id, name, x, y, facing, isMoving, isSelf, hp, hitTime, stableIndex, chatText, chatTime }) => (
           <Character
             key={id}
             name={name}
@@ -127,8 +137,20 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
             playerIndex={stableIndex}
             hp={hp}
             hitTime={hitTime}
+            chatText={chatText}
+            chatTime={chatTime}
           />
         ))}
+
+        {/* HP Bottle pickup */}
+        {bottleRef.current?.active && (
+          <BottlePickup x={bottleRef.current.x} y={bottleRef.current.y} now={now} />
+        )}
+
+        {/* Bottle heal popup — +10 floating text */}
+        {bottleHealRef.current.time > 0 && now - bottleHealRef.current.time < 800 && (
+          <HealPopup x={bottleHealRef.current.x} y={bottleHealRef.current.y} born={bottleHealRef.current.time} now={now} />
+        )}
 
         {/* Projectiles — pixel water drops */}
         {projectilesRef.current.map((proj) => (
@@ -541,6 +563,139 @@ function PixelSplash({ x, y, size }) {
     </svg>
   )
 }
+
+/* ─── Heal popup — "+10" that floats up and fades ─── */
+function HealPopup({ x, y, born, now }) {
+  const age = (now - born) / 800
+  const opacity = Math.max(0, 1 - age)
+  return (
+    <div
+      className="absolute pointer-events-none select-none"
+      style={{
+        top: 0,
+        left: 0,
+        transform: `translate3d(${Math.round(x - 14)}px, ${Math.round(y - 16 - 30 * age)}px, 0)`,
+        fontSize: 11,
+        fontWeight: 'bold',
+        fontFamily: 'monospace',
+        color: '#4ade80',
+        textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+        opacity,
+        willChange: 'transform, opacity',
+      }}
+    >
+      +10 HP
+    </div>
+  )
+}
+
+/* ─── Bottle pickup — compound: ground glow + sparkles + bottle ─── */
+function BottlePickup({ x, y, now }) {
+  const bobY = Math.sin(now * 0.004) * 3
+  const pulse = 0.4 + Math.sin(now * 0.005) * 0.25 // 0.15–0.65
+  const sparklePhase = now * 0.002
+
+  return (
+    <div
+      className="absolute pointer-events-none select-none"
+      style={{ top: 0, left: 0, transform: `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`, willChange: 'transform' }}
+    >
+      {/* Ground glow — pulsing ellipse */}
+      <svg
+        width={40} height={16}
+        viewBox="0 0 40 16"
+        style={{ position: 'absolute', left: -20, top: 4, opacity: pulse }}
+      >
+        <ellipse cx={20} cy={8} rx={18} ry={7} fill="#4ade80" opacity={0.35} />
+        <ellipse cx={20} cy={8} rx={12} ry={5} fill="#4ade80" opacity={0.25} />
+        <ellipse cx={20} cy={8} rx={6} ry={3} fill="#86efac" opacity={0.3} />
+      </svg>
+
+      {/* Orbiting sparkle pixels */}
+      {SPARKLE_OFFSETS.map((s, i) => {
+        const angle = sparklePhase + s.phase
+        const sx = Math.cos(angle) * s.r
+        const sy = Math.sin(angle) * s.r * 0.5 // squashed orbit
+        const sparkleOpacity = 0.4 + Math.sin(now * 0.008 + i * 2) * 0.4
+        return (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: sx - 1,
+              top: sy - 16 + bobY - 1,
+              width: 3,
+              height: 3,
+              background: s.color,
+              opacity: sparkleOpacity,
+              imageRendering: 'pixelated',
+            }}
+          />
+        )
+      })}
+
+      {/* Bottle — larger, with bob */}
+      <svg
+        width={20} height={30}
+        viewBox="0 0 8 12"
+        shapeRendering="crispEdges"
+        style={{
+          imageRendering: 'pixelated',
+          position: 'absolute',
+          left: -10,
+          top: -28 + bobY,
+        }}
+      >
+        {/* Cap */}
+        <rect x={3} y={0} width={2} height={1} fill="#6b3a1a" />
+        {/* Neck */}
+        <rect x={3} y={1} width={2} height={1} fill="#c44030" />
+        <rect x={3} y={2} width={2} height={1} fill="#b83828" />
+        {/* Body top */}
+        <rect x={2} y={3} width={4} height={1} fill="#e04838" />
+        <rect x={1} y={4} width={6} height={1} fill="#e04838" />
+        <rect x={1} y={5} width={6} height={1} fill="#d43830" />
+        {/* Label */}
+        <rect x={1} y={6} width={6} height={1} fill="#fde68a" />
+        <rect x={1} y={7} width={6} height={1} fill="#f59e0b" />
+        {/* Body bottom */}
+        <rect x={1} y={8} width={6} height={1} fill="#d43830" />
+        <rect x={1} y={9} width={6} height={1} fill="#c44030" />
+        <rect x={2} y={10} width={4} height={1} fill="#b83828" />
+        {/* Base */}
+        <rect x={2} y={11} width={4} height={1} fill="#8b2020" />
+        {/* Highlight */}
+        <rect x={2} y={4} width={1} height={2} fill="#f06858" />
+        <rect x={3} y={3} width={1} height={1} fill="#f06858" />
+      </svg>
+
+      {/* HP label — pixel tag below bottle */}
+      <div
+        style={{
+          position: 'absolute',
+          left: -12,
+          top: 6,
+          fontSize: 7,
+          fontWeight: 'bold',
+          fontFamily: 'monospace',
+          color: '#4ade80',
+          textShadow: '0 0 4px rgba(74,222,128,0.6), 0 1px 1px rgba(0,0,0,0.8)',
+          letterSpacing: '0.5px',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        +10 HP
+      </div>
+    </div>
+  )
+}
+
+const SPARKLE_OFFSETS = [
+  { r: 14, phase: 0, color: '#fde68a' },
+  { r: 16, phase: Math.PI * 0.66, color: '#86efac' },
+  { r: 13, phase: Math.PI * 1.33, color: '#fbbf24' },
+  { r: 15, phase: Math.PI * 0.33, color: '#4ade80' },
+]
 
 /* ─── Pixel temple gate — background prop ─── */
 function PixelTempleGate({ x, y, size }) {

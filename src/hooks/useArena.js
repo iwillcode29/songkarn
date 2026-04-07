@@ -10,6 +10,11 @@ import {
   tickProjectile,
   isProjectileOutOfBounds,
   checkProjectileHit,
+  PLAYER_RADIUS,
+  BOTTLE_RADIUS,
+  BOTTLE_HP,
+  BOTTLE_SPAWN_MS,
+  bottlePosition,
 } from '../lib/arena/physics'
 
 const BROADCAST_MIN_MS = 33   // ~30 Hz cap (small rooms)
@@ -19,6 +24,8 @@ const BROADCAST_DELTA_PX = 1  // min position change to trigger a send
 const BROADCAST_EVENT = 'pos'
 const PROJ_EVENT = 'proj'
 const DMG_EVENT = 'dmg'
+const BOTTLE_EVENT = 'bottle'
+const CHAT_EVENT = 'chat'
 const LERP_SPEED = 18 // higher = snappier interpolation
 const IDLE_HEARTBEAT_MS = 1000 // send a keepalive once per second when stationary
 
@@ -45,6 +52,9 @@ function createSharedRefs() {
     online: new Set(),
     seq: 0,        // broadcast sequence — survives remounts
     projSeq: 0,    // projectile sequence — survives remounts
+    bottle: { x: 0, y: 0, index: 0, active: false, spawnTime: 0 },
+    bottleHeal: { x: 0, y: 0, time: 0 }, // mutated in place like eliminationSignal
+    chatBubbles: new Map(), // playerId → { text, time }
   }
 }
 
@@ -134,6 +144,9 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   const eliminationSignalRef = useRef(shared.eliminationSignal)
   const initialisedRef = useRef(shared.initialised)
   const onlineRef = useRef(shared.online)
+  const bottleRef = useRef(shared.bottle)
+  const bottleHealRef = useRef(shared.bottleHeal)
+  const chatBubblesRef = useRef(shared.chatBubbles)
 
   // Keep refs pointing to the shared objects (handles hot-path where entry
   // exists before first render but ref.current was initialised with a stale copy)
@@ -145,6 +158,9 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   eliminationSignalRef.current = shared.eliminationSignal
   initialisedRef.current = shared.initialised
   onlineRef.current = shared.online
+  bottleRef.current = shared.bottle
+  bottleHealRef.current = shared.bottleHeal
+  chatBubblesRef.current = shared.chatBubbles
 
   const [, forceRender] = useReducer((x) => x + 1, 0)
   const channelRef = useRef(null)
@@ -229,6 +245,19 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
             sfx.hit()
             onSelfHitRef.current?.()
           }
+        })
+        .on('broadcast', { event: BOTTLE_EVENT }, ({ payload }) => {
+          if (!payload) return
+          if (r.bottle.index === payload.index) {
+            r.bottle.active = false
+            r.bottleHeal.x = r.bottle.x
+            r.bottleHeal.y = r.bottle.y
+            r.bottleHeal.time = performance.now()
+          }
+        })
+        .on('broadcast', { event: CHAT_EVENT }, ({ payload }) => {
+          if (!payload) return
+          r.chatBubbles.set(payload.playerId, { text: payload.text, time: performance.now() })
         })
         .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
           if (!payload) return
@@ -425,6 +454,39 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
         projs.length = writeIdx
       }
 
+      // 3.7. Bottle spawn + pickup
+      {
+        const bottle = bottleRef.current
+        // Spawn new bottle every 10s (replaces previous)
+        if (now - bottle.spawnTime >= BOTTLE_SPAWN_MS) {
+          bottle.index++
+          const pos = bottlePosition(bottle.index)
+          bottle.x = pos.x
+          bottle.y = pos.y
+          bottle.active = true
+          bottle.spawnTime = now
+        }
+        // Pickup detection — only the touching player
+        if (playerId && bottle.active) {
+          const selfPos = positionsRef.current.get(playerId)
+          if (selfPos) {
+            const dx = selfPos.x - bottle.x
+            const dy = selfPos.y - bottle.y
+            if (dx * dx + dy * dy < (PLAYER_RADIUS + BOTTLE_RADIUS) ** 2) {
+              const curHp = hpRef.current.get(playerId) ?? 0
+              hpRef.current.set(playerId, Math.min(MAX_HP, curHp + BOTTLE_HP))
+              bottle.active = false
+              shared.bottleHeal.x = bottle.x
+              shared.bottleHeal.y = bottle.y
+              shared.bottleHeal.time = now
+              if (channelRef.current?.state === 'joined') {
+                channelRef.current.send({ type: 'broadcast', event: BOTTLE_EVENT, payload: { index: bottle.index } })
+              }
+            }
+          }
+        }
+      }
+
       // 4. Broadcast own position — adaptive rate + delta suppression
       if (playerId) {
         // Adaptive interval: 30Hz for ≤6 players, linearly down to 10Hz at 20+
@@ -511,5 +573,5 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
     }
   }, [playerId, joystickRef])
 
-  return { positionsRef, targetsRef, connectedRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef }
+  return { positionsRef, targetsRef, connectedRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef, bottleRef, bottleHealRef, chatBubblesRef, channelRef }
 }

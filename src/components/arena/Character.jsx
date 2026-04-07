@@ -10,7 +10,9 @@ const SPRITE_SIZE = SIZE * 1.8
  */
 const FLASH_DURATION = 300
 
-const Character = memo(function Character({ name, x, y, facing, isMoving, isSelf, playerIndex = 0, hp = 50, hitTime = 0 }) {
+const CHAT_DURATION = 3000
+
+const Character = memo(function Character({ name, x, y, facing, isMoving, isSelf, playerIndex = 0, hp = 50, hitTime = 0, chatText = null, chatTime = 0 }) {
   const hpFrac = Math.max(0, hp) / 50
   const barColor = hpFrac > 0.5 ? '#4ade80' : hpFrac > 0.2 ? '#fbbf24' : '#f87171'
 
@@ -29,6 +31,30 @@ const Character = memo(function Character({ name, x, y, facing, isMoving, isSelf
         willChange: 'transform',
       }}
     >
+      {/* Chat bubble */}
+      {chatText && (
+        <div className="flex justify-center" style={{ marginBottom: 2 }}>
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.92)',
+              color: '#1a1a2e',
+              fontSize: 8,
+              lineHeight: 1.3,
+              padding: '2px 5px',
+              borderRadius: 4,
+              maxWidth: 80,
+              wordBreak: 'break-word',
+              textAlign: 'center',
+              fontWeight: 600,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              animation: 'chat-bubble-in 0.15s ease-out',
+            }}
+          >
+            {chatText}
+          </div>
+        </div>
+      )}
+
       {/* Self indicator — arrow pointing down */}
       {isSelf && (
         <div className="flex justify-center mb-0.5" style={{ animation: 'indicator-bob 1s ease-in-out infinite' }}>
