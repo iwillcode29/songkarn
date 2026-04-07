@@ -6,6 +6,10 @@ import {
   tickPlayer,
   resolveCollisions,
   MAX_HP,
+  MOVE_SPEED,
+  WORLD_WIDTH,
+  WORLD_HEIGHT,
+  PLAYER_RADIUS,
   facingToVelocity,
   tickProjectile,
   isProjectileOutOfBounds,
@@ -358,6 +362,9 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       }
 
       // 2. Lerp remote players toward their broadcast targets (mutate in place)
+      // Dead reckoning: when a remote player is moving, extrapolate the target
+      // forward each frame so the host display stays smooth between broadcasts.
+      const dtSec = dt / 1000
       for (const [id, target] of targetsRef.current) {
         if (id === playerId) continue // skip self — already handled above
         const current = positionsRef.current.get(id)
@@ -366,6 +373,19 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
           positionsRef.current.set(id, { x: target.x, y: target.y, facing: target.facing, isMoving: target.isMoving, _seq: target._seq })
           continue
         }
+
+        // Extrapolate target if player is moving (dead reckoning)
+        if (target.isMoving && target.facing) {
+          const { vx, vy } = facingToVelocity(target.facing)
+          const speed = MOVE_SPEED * dtSec
+          // facingToVelocity returns PROJECTILE_SPEED, normalise to unit direction
+          const mag = Math.sqrt(vx * vx + vy * vy)
+          if (mag > 0) {
+            target.x = Math.max(PLAYER_RADIUS, Math.min(WORLD_WIDTH - PLAYER_RADIUS, target.x + (vx / mag) * speed))
+            target.y = Math.max(PLAYER_RADIUS, Math.min(WORLD_HEIGHT - PLAYER_RADIUS, target.y + (vy / mag) * speed))
+          }
+        }
+
         current.x = lerp(current.x, target.x, lerpT)
         current.y = lerp(current.y, target.y, lerpT)
         current.facing = target.facing
