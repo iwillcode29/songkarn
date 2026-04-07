@@ -12,11 +12,15 @@ import {
   checkProjectileHit,
 } from '../lib/arena/physics'
 
-const BROADCAST_INTERVAL_MS = 33 // ~30 Hz (was 50ms/20Hz)
+const BROADCAST_MIN_MS = 33   // ~30 Hz cap (small rooms)
+const BROADCAST_MAX_MS = 100  // ~10 Hz floor (large rooms)
+const BROADCAST_SCALE_AT = 6  // start scaling down above this player count
+const BROADCAST_DELTA_PX = 1  // min position change to trigger a send
 const BROADCAST_EVENT = 'pos'
 const PROJ_EVENT = 'proj'
 const DMG_EVENT = 'dmg'
 const LERP_SPEED = 18 // higher = snappier interpolation
+const IDLE_HEARTBEAT_MS = 1000 // send a keepalive once per second when stationary
 
 /**
  * Module-level arena channel cache. Keeps one Supabase Realtime channel per
@@ -137,6 +141,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   const connectedRef = useRef(false)
   const lastShootRef = useRef(0)
   const SHOOT_COOLDOWN_MS = 200 // max ~5 shots/sec to avoid flooding the channel
+  const lastSentPosRef = useRef(null) // { x, y, facing } of last broadcast
 
   const frozenRef = useRef(frozen)
   frozenRef.current = frozen
@@ -409,24 +414,42 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
         projectilesRef.current.push(...surviving)
       }
 
-      // 4. Broadcast own position at ~30 Hz
-      if (playerId && now - lastBroadcastRef.current >= BROADCAST_INTERVAL_MS) {
-        lastBroadcastRef.current = now
-        const pos = positionsRef.current.get(playerId)
-        if (pos && channelRef.current?.state === 'joined') {
-          seqRef.current++
-          channelRef.current.send({
-            type: 'broadcast',
-            event: BROADCAST_EVENT,
-            payload: {
-              playerId,
-              x: pos.x,
-              y: pos.y,
-              facing: pos.facing,
-              isMoving: pos.isMoving,
-              seq: seqRef.current,
-            },
-          })
+      // 4. Broadcast own position — adaptive rate + delta suppression
+      if (playerId) {
+        // Adaptive interval: 30Hz for ≤6 players, linearly down to 10Hz at 20+
+        const playerCount = playersRef.current?.length ?? 1
+        const broadcastMs = playerCount <= BROADCAST_SCALE_AT
+          ? BROADCAST_MIN_MS
+          : Math.min(BROADCAST_MIN_MS + (playerCount - BROADCAST_SCALE_AT) * 5, BROADCAST_MAX_MS)
+
+        if (now - lastBroadcastRef.current >= broadcastMs) {
+          const pos = positionsRef.current.get(playerId)
+          if (pos && channelRef.current?.state === 'joined') {
+            const last = lastSentPosRef.current
+            const dx = last ? Math.abs(pos.x - last.x) : Infinity
+            const dy = last ? Math.abs(pos.y - last.y) : Infinity
+            const facingChanged = !last || pos.facing !== last.facing
+            const moved = dx > BROADCAST_DELTA_PX || dy > BROADCAST_DELTA_PX || facingChanged
+            const idleTooLong = now - lastBroadcastRef.current >= IDLE_HEARTBEAT_MS
+
+            if (moved || idleTooLong) {
+              lastBroadcastRef.current = now
+              lastSentPosRef.current = { x: pos.x, y: pos.y, facing: pos.facing }
+              seqRef.current++
+              channelRef.current.send({
+                type: 'broadcast',
+                event: BROADCAST_EVENT,
+                payload: {
+                  playerId,
+                  x: pos.x,
+                  y: pos.y,
+                  facing: pos.facing,
+                  isMoving: pos.isMoving,
+                  seq: seqRef.current,
+                },
+              })
+            }
+          }
         }
       }
 
