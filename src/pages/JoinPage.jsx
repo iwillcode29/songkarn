@@ -46,11 +46,17 @@ export default function JoinPage() {
 
   useKeyboard(joystickRef)
 
-  // Mobile screen shake on self-hit — seed counter forces CSS animation restart
-  const [shakeSeed, setShakeSeed] = useState(0)
+  // Mobile screen shake on self-hit — restart CSS animation without remounting
+  const shakeRef = useRef(null)
   const handleSelfHit = useCallback(() => {
     navigator.vibrate?.(50)
-    setShakeSeed(s => s + 1)
+    const el = shakeRef.current
+    if (el) {
+      el.classList.remove('hit-shake')
+      // Force reflow to restart the animation
+      void el.offsetWidth
+      el.classList.add('hit-shake')
+    }
   }, [])
 
   // Quiz reveal state — set by host broadcast
@@ -295,8 +301,8 @@ export default function JoinPage() {
       {/* ── Persistent Arena — same instance for lobby + quiz ── */}
       {showArena && (
         <div
-          key={`shake-${shakeSeed}`}
-          className={`${phase === 'quiz_playing' ? 'flex-1 min-h-0' : ''} w-full flex items-center justify-center${shakeSeed > 0 ? ' hit-shake' : ''}`}
+          ref={shakeRef}
+          className={`${phase === 'quiz_playing' ? 'flex-1 min-h-0' : ''} w-full flex items-center justify-center`}
         >
           <div style={phase === 'quiz_playing' ? { width: '100%', maxWidth: 'calc((100dvh - 220px) * 800 / 450)' } : { width: '100%' }}>
             <Arena

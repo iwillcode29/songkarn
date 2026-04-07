@@ -43,6 +43,8 @@ function createSharedRefs() {
     eliminationSignal: { time: 0 },
     initialised: new Set(),
     online: new Set(),
+    seq: 0,        // broadcast sequence — survives remounts
+    projSeq: 0,    // projectile sequence — survives remounts
   }
 }
 
@@ -143,14 +145,11 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   initialisedRef.current = shared.initialised
   onlineRef.current = shared.online
 
-  const projSeqRef = useRef(0)
-
   const [, forceRender] = useReducer((x) => x + 1, 0)
   const channelRef = useRef(null)
   const rafRef = useRef(null)
   const lastTimeRef = useRef(null)
   const lastBroadcastRef = useRef(0)
-  const seqRef = useRef(0)
   const connectedRef = useRef(false)
   const lastShootRef = useRef(0)
   const SHOOT_COOLDOWN_MS = 200 // max ~5 shots/sec to avoid flooding the channel
@@ -297,11 +296,11 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
             // next RAF tick.
             const pos = positionsRef.current.get(playerId)
             if (pos) {
-              seqRef.current++
+              shared.seq++
               channel.send({
                 type: 'broadcast',
                 event: BROADCAST_EVENT,
-                payload: { playerId, x: pos.x, y: pos.y, facing: pos.facing, isMoving: pos.isMoving, seq: seqRef.current },
+                payload: { playerId, x: pos.x, y: pos.y, facing: pos.facing, isMoving: pos.isMoving, seq: shared.seq },
               })
             }
           }
@@ -379,7 +378,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
           lastShootRef.current = now
           const { vx, vy } = facingToVelocity(pos.facing)
           const proj = {
-            id: `${playerId}-${++projSeqRef.current}`,
+            id: `${playerId}-${++shared.projSeq}`,
             x: pos.x,
             y: pos.y,
             vx,
@@ -446,7 +445,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
             if (moved || idleTooLong) {
               lastBroadcastRef.current = now
               lastSentPosRef.current = { x: pos.x, y: pos.y, facing: pos.facing }
-              seqRef.current++
+              shared.seq++
               channelRef.current.send({
                 type: 'broadcast',
                 event: BROADCAST_EVENT,
@@ -456,7 +455,7 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
                   y: pos.y,
                   facing: pos.facing,
                   isMoving: pos.isMoving,
-                  seq: seqRef.current,
+                  seq: shared.seq,
                 },
               })
             }
