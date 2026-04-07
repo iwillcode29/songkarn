@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { getQuizQuestions, ZONE_COLORS } from '../../lib/quizQuestions'
@@ -60,9 +60,11 @@ export default function QuizHostView({ room, players }) {
   const alivePlayers = useMemo(() => players.filter((p) => p.is_alive), [players])
 
   const allRevealed = revealedAnswer !== null
+  const revealingRef = useRef(false) // synchronous guard against double-tap
 
-  async function handleReveal() {
-    if (isRevealing || !question) return
+  const handleReveal = useCallback(async () => {
+    if (revealingRef.current || isRevealing || !question) return
+    revealingRef.current = true
     setIsRevealing(true)
 
     const correctAnswer = question.correct
@@ -85,20 +87,19 @@ export default function QuizHostView({ room, players }) {
       channelRef.current?.send(revealPayload)
     }
 
-    // Wait for mobile clients to report their positions + animation time
-    await new Promise((r) => setTimeout(r, 2000))
+    // Wait for mobile clients to report their positions + animation time.
+    // 4s gives enough time for slow party WiFi round-trips.
+    await new Promise((r) => setTimeout(r, 4000))
 
     // Use positions reported by mobile clients (exact, no lag).
     // Fall back to host's broadcast-target positions if a client didn't report.
+    // Players with no position at all are NOT eliminated — skip them gracefully.
     const hostSnapshot = new Map(arenaRef.current)
     const eliminatedIds = []
 
     for (const p of aliveSnapshot) {
       const pos = reportedPositionsRef.current.get(p.id) ?? hostSnapshot.get(p.id)
-      if (!pos) {
-        eliminatedIds.push(p.id)
-        continue
-      }
+      if (!pos) continue // no position data — don't punish for connectivity
       const zone = getZoneForPosition(pos.x, pos.y)
       if (zone !== correctAnswer) {
         eliminatedIds.push(p.id)
@@ -119,7 +120,8 @@ export default function QuizHostView({ room, players }) {
     }
 
     setIsRevealing(false)
-  }
+    revealingRef.current = false
+  }, [isRevealing, question, alivePlayers, room.current_round, isLastQuestion, room.id])
 
   async function handleNextQuestion() {
     if (isAdvancing) return

@@ -151,7 +151,7 @@ export default function JoinPage() {
       return myPlayer?.is_alive ? 'champion' : 'eliminated'
     }
     if (!playerId || !myPlayer) {
-      if (room.status !== 'lobby') return 'invalid'
+      if (room.status !== 'lobby') return 'game_started'
       return 'joining'
     }
     if (room.status === 'lobby') return 'lobby_wait'
@@ -201,8 +201,17 @@ export default function JoinPage() {
     return (
       <FullScreenMessage
         emoji="🚫"
-        text="Room not found or game already started."
-        sub="Ask the host for a new room code."
+        text="Room not found."
+        sub="Check the room code and try again."
+      />
+    )
+  }
+  if (phase === 'game_started') {
+    return (
+      <FullScreenMessage
+        emoji="🎮"
+        text="Game already in progress!"
+        sub="Wait for the next round to join."
       />
     )
   }

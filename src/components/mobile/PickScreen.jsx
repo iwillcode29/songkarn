@@ -23,8 +23,12 @@ export default function PickScreen({ match, playerId, player }) {
     setSubmitting(true)
 
     const column = isP1 ? 'p1_choice' : 'p2_choice'
-    await supabase.from('matches').update({ [column]: weaponId }).eq('id', match.id)
+    const { error } = await supabase.from('matches').update({ [column]: weaponId }).eq('id', match.id)
 
+    if (error) {
+      // DB write failed — reset so player can retry
+      setChosen(null)
+    }
     setSubmitting(false)
   }
 
