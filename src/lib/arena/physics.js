@@ -10,7 +10,6 @@ export const MOVE_SPEED = 150 // logical px per second
 export const MAX_HP = 50
 export const PROJECTILE_SPEED = 300 // logical px per second
 export const PROJECTILE_RADIUS = 5
-
 /**
  * Deterministic spawn positions so every client places players identically.
  */

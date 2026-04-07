@@ -164,6 +164,11 @@
   50%      { transform: translateY(-3px); }
 }
 
+@keyframes chat-bubble-in {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
 @keyframes mobile-shake {
   0%, 100% { transform: translateX(0); }
   20%      { transform: translateX(-5px); }
@@ -227,6 +232,17 @@
   right: 24px;
   z-index: 50;
   pointer-events: auto;
+}
+
+/* Chat bar — bottom center overlay */
+.arena-chat-bar {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  pointer-events: auto;
+  width: min(70%, 280px);
 }
 
 /* Status text overlay — top center */
