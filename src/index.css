@@ -174,3 +174,108 @@
 .hit-shake {
   animation: mobile-shake 400ms ease-out;
 }
+
+/* ─── Mobile landscape arena ─── */
+.arena-landscape {
+  position: fixed;
+  inset: 0;
+  /* Rotate portrait viewport to landscape */
+  width: 100dvh;
+  height: 100dvw;
+  transform: rotate(90deg);
+  transform-origin: top left;
+  /* Shift into view after rotation */
+  top: 0;
+  left: 100dvw;
+  background: var(--twilight-950);
+  overflow: hidden;
+  z-index: 40;
+}
+/* If already in landscape orientation, don't rotate */
+@media (orientation: landscape) {
+  .arena-landscape {
+    width: 100dvw;
+    height: 100dvh;
+    transform: none;
+    top: 0;
+    left: 0;
+  }
+}
+
+.arena-landscape-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Joystick — bottom-left overlay */
+.arena-ctrl-left {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 50;
+  pointer-events: auto;
+}
+.arena-ctrl-left > div { padding: 0 !important; }
+
+/* Shoot button — bottom-right overlay */
+.arena-ctrl-right {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+  pointer-events: auto;
+}
+
+/* Status text overlay — top center */
+.arena-status-overlay {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  text-align: center;
+  pointer-events: none;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+/* Quiz toggle button — top right */
+.arena-quiz-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 55;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(232,184,74,0.2);
+  border: 1px solid rgba(232,184,74,0.3);
+  color: var(--gold-400);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Quiz popup — top center overlay */
+.arena-quiz-popup {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(90%, 400px);
+  pointer-events: auto;
+}
+.arena-quiz-popup-card {
+  background: rgba(15,10,30,0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(232,184,74,0.15);
+  border-radius: 12px;
+  padding: 10px 14px;
+}

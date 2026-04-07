@@ -61,6 +61,7 @@ export default function JoinPage() {
 
   // Quiz reveal state — set by host broadcast
   const [quizReveal, setQuizReveal] = useState(null) // 'a'|'b'|'c'|'d' or null
+  const [quizPopupOpen, setQuizPopupOpen] = useState(false)
 
   const myPositionRef = useRef(null) // Arena writes player's own position here
   const playerIdRef = useRef(playerId)
@@ -123,8 +124,16 @@ export default function JoinPage() {
 
   // Clear stale quiz reveal when room resets to lobby (play again)
   useEffect(() => {
-    if (room && room.status === 'lobby') setQuizReveal(null)
+    if (room && room.status === 'lobby') { setQuizReveal(null); setQuizPopupOpen(false) }
   }, [room?.status])
+
+  // Auto-open quiz popup when a new question arrives, auto-close on reveal
+  useEffect(() => {
+    if (room?.current_round) setQuizPopupOpen(true)
+  }, [room?.current_round])
+  useEffect(() => {
+    if (quizReveal) setQuizPopupOpen(false)
+  }, [quizReveal])
 
   const myPlayer = useMemo(
     () => players.find((p) => p.id === playerId),
@@ -236,6 +245,92 @@ export default function JoinPage() {
   // In quiz mode, show only alive players; in lobby, show all
   const arenaPlayers = phase === 'quiz_playing' ? players.filter((p) => p.is_alive) : players
 
+  // ── Mobile landscape + overlay controls vs Desktop normal layout ──
+  const showControls = showArena && isTouchDevice && !(phase === 'quiz_playing' && quizReveal)
+
+  // Mobile touch: fullscreen landscape arena with overlaid controls
+  if (showArena && isTouchDevice) {
+    return (
+      <div className="arena-landscape sk-bg-fixed">
+        {reconnectBanner}
+
+        {/* Arena fills the rotated viewport */}
+        <div ref={shakeRef} className="arena-landscape-inner">
+          <Arena
+            roomId={roomId}
+            playerId={playerId}
+            players={arenaPlayers}
+            joystickRef={joystickRef}
+            quizOverlay={quizOverlay}
+            selfPositionRef={myPositionRef}
+            frozen={!!quizReveal}
+            onSelfHit={handleSelfHit}
+          />
+        </div>
+
+        {/* ── Overlay controls ── */}
+        {showControls && (
+          <>
+            {/* Joystick — bottom left */}
+            <div className="arena-ctrl-left">
+              <Joystick inputRef={joystickRef} />
+            </div>
+            {/* Shoot — bottom right (lobby only) */}
+            {phase === 'lobby_wait' && (
+              <div className="arena-ctrl-right">
+                <ShootButton joystickRef={joystickRef} />
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Status overlay ── */}
+        {phase === 'lobby_wait' && (
+          <div className="arena-status-overlay">
+            <PulseDot text="Waiting for the host to start…" />
+          </div>
+        )}
+        {phase === 'quiz_playing' && !quizReveal && (
+          <div className="arena-status-overlay">
+            <p className="text-xs font-body" style={{ color: 'var(--cream-400)' }}>Run to your answer zone!</p>
+          </div>
+        )}
+        {phase === 'quiz_playing' && quizReveal && (
+          <div className="arena-status-overlay">
+            <p className="text-sm font-bold" style={{ color: 'var(--water-300)' }}>
+              Waiting for next question...
+            </p>
+          </div>
+        )}
+
+        {/* ── Quiz question popup button + popup ── */}
+        {phase === 'quiz_playing' && question && (
+          <>
+            {/* Toggle button — top right */}
+            <button
+              className="arena-quiz-toggle"
+              onClick={() => setQuizPopupOpen(o => !o)}
+            >
+              <span style={{ fontSize: 14 }}>Q{room.current_round}</span>
+            </button>
+
+            {/* Auto-show popup on new question */}
+            <QuizPopup
+              question={question}
+              questionIndex={questionIndex}
+              totalQuestions={questions.length}
+              currentRound={room.current_round}
+              quizReveal={quizReveal}
+              open={quizPopupOpen}
+              onClose={() => setQuizPopupOpen(false)}
+            />
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // ── Desktop / non-touch layout (unchanged) ──
   return (
     <div className="sk-bg-fixed flex flex-col items-center justify-center px-5 py-4">
       {reconnectBanner}
@@ -298,7 +393,7 @@ export default function JoinPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Persistent Arena — same instance for lobby + quiz ── */}
+      {/* ── Persistent Arena ── */}
       {showArena && (
         <div
           ref={shakeRef}
@@ -319,19 +414,11 @@ export default function JoinPage() {
         </div>
       )}
 
-      {/* ── Controls ── */}
-      {showArena && isTouchDevice && !(phase === 'quiz_playing' && quizReveal) && (
-        <div className="flex items-center justify-center gap-10 mt-1 flex-shrink-0">
-          <Joystick inputRef={joystickRef} />
-          {phase === 'lobby_wait' && <ShootButton joystickRef={joystickRef} />}
-        </div>
-      )}
-
-      {/* ── Arena status text ── */}
+      {/* ── Arena status text (desktop) ── */}
       {phase === 'lobby_wait' && (
         <div className="text-center mt-1">
           <p className="text-center font-semibold text-xs mb-1" style={{ color: 'rgba(232,184,74,0.6)' }}>
-            {isTouchDevice ? 'Walk around while waiting!' : 'Use W A S D to walk around!'}
+            Use W A S D to walk around!
           </p>
           <PulseDot text="Waiting for the host to start…" />
         </div>
@@ -341,7 +428,7 @@ export default function JoinPage() {
         <p className="text-center mt-1 text-xs font-body flex-shrink-0" style={{ color: 'var(--cream-400)' }}>
           {quizReveal
             ? 'Waiting for next question...'
-            : isTouchDevice ? 'Run to your answer zone!' : 'Use W A S D to move to your answer!'}
+            : 'Use W A S D to move to your answer!'}
         </p>
       )}
 
@@ -514,6 +601,53 @@ function ShootButton({ joystickRef }) {
     >
       💧
     </button>
+  )
+}
+
+function QuizPopup({ question, questionIndex, totalQuestions, currentRound, quizReveal, open, onClose }) {
+  if (!open || !question) return null
+  return (
+    <div className="arena-quiz-popup">
+      <div className="arena-quiz-popup-card">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-body" style={{ color: 'var(--cream-400)' }}>
+            Q{currentRound} / {totalQuestions}
+          </p>
+          <button onClick={onClose} className="text-xs font-bold px-2 py-0.5 rounded" style={{ color: 'var(--cream-400)', background: 'rgba(255,255,255,0.06)' }}>
+            Close
+          </button>
+        </div>
+        <p className="text-sm font-bold leading-snug mb-2" style={{ color: 'var(--cream-50)' }}>
+          {question.question}
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {['a', 'b', 'c', 'd'].map((key) => {
+            const color = ZONE_COLORS[key]
+            const isCorrect = quizReveal === key
+            const isWrong = quizReveal && quizReveal !== key
+            return (
+              <div
+                key={key}
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1"
+                style={{
+                  background: isCorrect ? 'rgba(34,197,94,0.2)' : isWrong ? 'rgba(255,255,255,0.02)' : color.bg,
+                  border: `1px solid ${isCorrect ? 'rgba(34,197,94,0.5)' : isWrong ? 'rgba(255,255,255,0.04)' : color.border}`,
+                  opacity: isWrong ? 0.4 : 1,
+                }}
+              >
+                <span className="font-black text-xs" style={{ color: isCorrect ? '#22c55e' : color.text }}>
+                  {key.toUpperCase()}
+                </span>
+                <span className="font-body text-xs" style={{ color: isCorrect ? '#bbf7d0' : 'var(--cream-200)' }}>
+                  {question[key]}
+                </span>
+                {isCorrect && <span className="ml-auto text-xs">✅</span>}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
   )
 }
 
