@@ -19,7 +19,6 @@ const BROADCAST_DELTA_PX = 1  // min position change to trigger a send
 const BROADCAST_EVENT = 'pos'
 const PROJ_EVENT = 'proj'
 const DMG_EVENT = 'dmg'
-const CHAT_EVENT = 'chat'
 const LERP_SPEED = 18 // higher = snappier interpolation
 const IDLE_HEARTBEAT_MS = 1000 // send a keepalive once per second when stationary
 
@@ -46,7 +45,6 @@ function createSharedRefs() {
     online: new Set(),
     seq: 0,        // broadcast sequence — survives remounts
     projSeq: 0,    // projectile sequence — survives remounts
-    chatBubbles: new Map(), // playerId → { text, time }
   }
 }
 
@@ -136,7 +134,6 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   const eliminationSignalRef = useRef(shared.eliminationSignal)
   const initialisedRef = useRef(shared.initialised)
   const onlineRef = useRef(shared.online)
-  const chatBubblesRef = useRef(shared.chatBubbles)
 
   // Keep refs pointing to the shared objects (handles hot-path where entry
   // exists before first render but ref.current was initialised with a stale copy)
@@ -148,7 +145,6 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   eliminationSignalRef.current = shared.eliminationSignal
   initialisedRef.current = shared.initialised
   onlineRef.current = shared.online
-  chatBubblesRef.current = shared.chatBubbles
 
   const [, forceRender] = useReducer((x) => x + 1, 0)
   const channelRef = useRef(null)
@@ -233,10 +229,6 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
             sfx.hit()
             onSelfHitRef.current?.()
           }
-        })
-        .on('broadcast', { event: CHAT_EVENT }, ({ payload }) => {
-          if (!payload) return
-          r.chatBubbles.set(payload.playerId, { text: payload.text, time: performance.now() })
         })
         .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
           if (!payload) return
@@ -519,5 +511,5 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
     }
   }, [playerId, joystickRef])
 
-  return { positionsRef, targetsRef, connectedRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef, chatBubblesRef, channelRef }
+  return { positionsRef, targetsRef, connectedRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef }
 }

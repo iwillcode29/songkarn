@@ -74,8 +74,6 @@ export default function JoinPage() {
   // Random picker state — set by host broadcast
   const [randomWinner, setRandomWinner] = useState(null) // { playerId, name } or null
 
-  const chatChannelRef = useRef(null) // Arena exposes its channel for chat sends
-  const chatBubblesMapRef = useRef(null) // Arena exposes chatBubbles map for local echo
   const myPositionRef = useRef(null) // Arena writes player's own position here
   const playerIdRef = useRef(playerId)
   playerIdRef.current = playerId
@@ -364,8 +362,6 @@ export default function JoinPage() {
             selfPositionRef={myPositionRef}
             frozen={!!quizReveal}
             onSelfHit={handleSelfHit}
-            chatChannelRef={chatChannelRef}
-            chatBubblesMapRef={chatBubblesMapRef}
           />
         </div>
 
@@ -401,13 +397,6 @@ export default function JoinPage() {
             <p className="text-sm font-bold" style={{ color: 'var(--water-300)' }}>
               Waiting for next question...
             </p>
-          </div>
-        )}
-
-        {/* ── Chat input bar — lobby only ── */}
-        {phase === 'lobby_wait' && (
-          <div className="arena-chat-bar">
-            <ChatBar playerId={playerId} channelRef={chatChannelRef} bubblesRef={chatBubblesMapRef} />
           </div>
         )}
 
@@ -517,8 +506,6 @@ export default function JoinPage() {
               selfPositionRef={myPositionRef}
               frozen={!!quizReveal}
               onSelfHit={handleSelfHit}
-              chatChannelRef={chatChannelRef}
-              chatBubblesMapRef={chatBubblesMapRef}
             />
           </div>
         </div>
@@ -528,10 +515,9 @@ export default function JoinPage() {
       {phase === 'lobby_wait' && (
         <div className="text-center mt-1">
           <p className="text-center font-semibold text-xs mb-1" style={{ color: 'rgba(232,184,74,0.6)' }}>
-            Use W A S D to walk around! Press Enter to chat.
+            Use W A S D to walk around!
           </p>
           <PulseDot text="Waiting for the host to start…" />
-          <ChatBar playerId={playerId} channelRef={chatChannelRef} bubblesRef={chatBubblesMapRef} />
         </div>
       )}
 
@@ -689,71 +675,6 @@ function PulseDot({ text }) {
       <span className="animate-pulse text-xs" style={{ color: 'var(--water-400)' }}>●</span>
       <span className="text-sm font-body" style={{ color: 'var(--cream-400)' }}>{text}</span>
     </div>
-  )
-}
-
-const CHAT_COOLDOWN_MS = 1000
-
-function ChatBar({ playerId, channelRef, bubblesRef }) {
-  const [text, setText] = useState('')
-  const lastChatRef = useRef(0)
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const msg = text.trim()
-    const now = performance.now()
-    if (!msg || !channelRef.current || now - lastChatRef.current < CHAT_COOLDOWN_MS) return
-    lastChatRef.current = now
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'chat',
-      payload: { playerId, text: msg },
-    })
-    // Local echo — arena channel has self:false so sender won't get the broadcast
-    if (bubblesRef.current) {
-      bubblesRef.current.set(playerId, { text: msg, time: performance.now() })
-    }
-    setText('')
-  }
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex gap-1.5 items-center"
-      style={{ padding: '4px 8px' }}
-    >
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        maxLength={30}
-        placeholder="Say something…"
-        className="flex-1 rounded-lg px-2.5 py-1.5 text-xs font-body outline-none"
-        style={{
-          background: 'rgba(255,255,255,0.08)',
-          color: 'var(--cream-50)',
-          border: '1px solid rgba(232,184,74,0.15)',
-          minWidth: 0,
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = 'rgba(232,184,74,0.4)'
-          e.currentTarget.style.boxShadow = '0 0 6px rgba(232,184,74,0.15)'
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = 'rgba(232,184,74,0.15)'
-          e.currentTarget.style.boxShadow = 'none'
-        }}
-      />
-      <button
-        type="submit"
-        className="rounded-lg px-2.5 py-1.5 text-xs font-bold shrink-0"
-        style={{
-          background: 'rgba(232,184,74,0.15)',
-          color: 'var(--gold-400)',
-          border: '1px solid rgba(232,184,74,0.25)',
-        }}
-      >
-        Send
-      </button>
-    </form>
   )
 }
 

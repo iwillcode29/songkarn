@@ -9,11 +9,11 @@ import Character from './Character'
  * Scales the logical world (800×450) to fit any container.
  * All scenery uses crisp SVG pixel art — no emoji.
  */
-export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, selfPositionRef, frozen, onSelfHit, chatChannelRef, chatBubblesMapRef }) {
+export default function Arena({ roomId, playerId, players, joystickRef, quizOverlay, positionsMapRef, selfPositionRef, frozen, onSelfHit }) {
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
 
-  const { positionsRef, targetsRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef, chatBubblesRef, channelRef } = useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit })
+  const { positionsRef, targetsRef, hpRef, projectilesRef, hitSignalsRef, eliminationSignalRef } = useArena({ roomId, playerId, players, joystickRef, frozen, onSelfHit })
 
   // Splash popup pool — ephemeral, RAF-driven
   const splashPoolRef = useRef([])
@@ -29,10 +29,6 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
     selfPositionRef.current = positionsRef.current.get(playerId) ?? null
   }
 
-  // Expose arena channel and chat bubbles map so parent can send chat messages
-  if (chatChannelRef) chatChannelRef.current = channelRef.current
-  if (chatBubblesMapRef) chatBubblesMapRef.current = chatBubblesRef.current
-
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -46,27 +42,21 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
   // Stable palette index based on join order (not filtered renderList index)
   const playerIndexMap = useMemo(() => new Map(players.map((p, i) => [p.id, i])), [players])
 
-  const now = performance.now()
-
   const renderList = []
   if (positionsRef.current) {
     for (const p of players) {
       const pos = positionsRef.current.get(p.id)
-      if (pos) {
-        const chat = chatBubblesRef.current.get(p.id)
-        renderList.push({
-          id: p.id, name: p.name, ...pos, isSelf: p.id === playerId,
-          hp: hpRef.current.get(p.id) ?? MAX_HP,
-          hitTime: hitSignalsRef.current.get(p.id)?.time ?? 0,
-          stableIndex: playerIndexMap.get(p.id) ?? 0,
-          chatText: chat && now - chat.time < 3000 ? chat.text : null,
-          chatTime: chat?.time ?? 0,
-        })
-      }
+      if (pos) renderList.push({
+        id: p.id, name: p.name, ...pos, isSelf: p.id === playerId,
+        hp: hpRef.current.get(p.id) ?? MAX_HP,
+        hitTime: hitSignalsRef.current.get(p.id)?.time ?? 0,
+        stableIndex: playerIndexMap.get(p.id) ?? 0,
+      })
     }
   }
 
   // Ingest new splash popups from hit signals
+  const now = performance.now()
   for (const [id, signal] of hitSignalsRef.current) {
     const key = `${id}-${signal.time}`
     if (now - signal.time < 50 && !splashSeenRef.current.has(key)) {
@@ -125,7 +115,7 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
         {quizOverlay}
 
         {/* Characters */}
-        {renderList.map(({ id, name, x, y, facing, isMoving, isSelf, hp, hitTime, stableIndex, chatText, chatTime }) => (
+        {renderList.map(({ id, name, x, y, facing, isMoving, isSelf, hp, hitTime, stableIndex }) => (
           <Character
             key={id}
             name={name}
@@ -137,8 +127,6 @@ export default function Arena({ roomId, playerId, players, joystickRef, quizOver
             playerIndex={stableIndex}
             hp={hp}
             hitTime={hitTime}
-            chatText={chatText}
-            chatTime={chatTime}
           />
         ))}
 
