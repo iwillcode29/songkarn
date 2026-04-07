@@ -22,6 +22,13 @@ const GAME_MODES = [
     desc: '10 questions — run to the zone!',
     minPlayers: 1,
   },
+  {
+    id: 'random',
+    emoji: '🎲',
+    title: 'Random',
+    desc: 'Pick a random player!',
+    minPlayers: 1,
+  },
 ]
 
 export default function Lobby({ room, players, onClearRoom }) {
@@ -50,8 +57,8 @@ export default function Lobby({ room, players, onClearRoom }) {
     setStarting(true)
 
     try {
-      // Quiz mode: set game_mode and flip to playing
-      if (mode === 'quiz') {
+      // Simple modes (no match rows): set game_mode and flip to playing
+      if (mode === 'quiz' || mode === 'random') {
         const { error: roomError } = await supabase
           .from('rooms')
           .update({ status: 'playing', game_mode: mode })

@@ -71,6 +71,9 @@ export default function JoinPage() {
   const [quizReveal, setQuizReveal] = useState(null) // 'a'|'b'|'c'|'d' or null
   const [quizPopupOpen, setQuizPopupOpen] = useState(false)
 
+  // Random picker state — set by host broadcast
+  const [randomWinner, setRandomWinner] = useState(null) // { playerId, name } or null
+
   const myPositionRef = useRef(null) // Arena writes player's own position here
   const playerIdRef = useRef(playerId)
   playerIdRef.current = playerId
@@ -130,9 +133,36 @@ export default function JoinPage() {
     ),
   )
 
-  // Clear stale quiz reveal when room resets to lobby (play again)
+  // Random picker broadcast channel
   useEffect(() => {
-    if (room && room.status === 'lobby') { setQuizReveal(null); setQuizPopupOpen(false) }
+    if (!roomId) return
+    let destroyed = false
+    let ch = null
+
+    function createChannel() {
+      ch = supabase.channel(`random:${roomId}`, { config: { broadcast: { self: false } } })
+      ch.on('broadcast', { event: 'random-winner' }, ({ payload }) => {
+        if (payload?.playerId) setRandomWinner(payload)
+      })
+      ch.subscribe((status) => {
+        if (destroyed) return
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          supabase.removeChannel(ch)
+          setTimeout(() => { if (!destroyed) createChannel() }, 1000)
+        }
+      })
+    }
+
+    createChannel()
+    return () => {
+      destroyed = true
+      if (ch) supabase.removeChannel(ch)
+    }
+  }, [roomId])
+
+  // Clear stale state when room resets to lobby (play again)
+  useEffect(() => {
+    if (room && room.status === 'lobby') { setQuizReveal(null); setQuizPopupOpen(false); setRandomWinner(null) }
   }, [room?.status])
 
   // Auto-open quiz popup when a new question arrives, auto-close on reveal
@@ -183,6 +213,11 @@ export default function JoinPage() {
     if (room.game_mode === 'quiz') {
       if (!myPlayer.is_alive) return 'eliminated'
       return 'quiz_playing'
+    }
+
+    // Random picker mode
+    if (room.game_mode === 'random') {
+      return 'random_playing'
     }
 
     // Bracket mode
@@ -240,6 +275,60 @@ export default function JoinPage() {
   }
   if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
   if (phase === 'champion') return <>{reconnectBanner}<MobileChampionScreen player={myPlayer} /></>
+
+  // ── Random picker: waiting screen with winner celebration ──
+  if (phase === 'random_playing') {
+    const isMe = randomWinner?.playerId === playerId
+    return (
+      <div className="sk-bg-fixed flex flex-col items-center justify-center min-h-dvh px-8 text-center space-y-6">
+        {reconnectBanner}
+        <AnimatePresence mode="wait">
+          {isMe ? (
+            <motion.div
+              key="winner"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 10 }}
+              className="space-y-4"
+            >
+              <motion.div
+                animate={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 0.6, repeat: 3 }}
+                className="text-9xl"
+              >
+                🎉
+              </motion.div>
+              <h2 className="text-4xl font-black" style={{ color: 'var(--gold-400)' }}>
+                YOU WON!
+              </h2>
+              <p className="text-lg font-body" style={{ color: 'var(--cream-200)' }}>
+                Go claim your prize!
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="waiting"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-4"
+            >
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="text-8xl"
+              >
+                🎲
+              </motion.div>
+              <h2 className="text-2xl font-black" style={{ color: 'var(--cream-50)' }}>
+                {randomWinner ? `${randomWinner.name} won!` : 'Random Pick'}
+              </h2>
+              <PulseDot text="Watch the host screen…" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    )
+  }
 
   // ── Phases that use the Arena (lobby_wait + quiz_playing) ──
   // A SINGLE Arena instance persists across lobby→quiz transition.

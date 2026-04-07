@@ -10,6 +10,7 @@ import Lobby from '../components/host/Lobby'
 import BracketView from '../components/host/BracketView'
 import HostChampionScreen from '../components/host/HostChampionScreen'
 import QuizHostView from '../components/host/QuizHostView'
+import RandomPickerHostView from '../components/host/RandomPickerHostView'
 
 /**
  * HostPage — orchestrates the entire game lifecycle:
@@ -271,6 +272,10 @@ export default function HostPage() {
   // room.status === 'playing'
   if (room.game_mode === 'quiz') {
     return <QuizHostView room={room} players={players} />
+  }
+
+  if (room.game_mode === 'random') {
+    return <RandomPickerHostView room={room} players={players} />
   }
 
   return (
