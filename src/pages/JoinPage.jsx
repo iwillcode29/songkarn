@@ -43,6 +43,14 @@ export default function JoinPage() {
 
   const joystickRef = useRef({ dx: 0, dy: 0 })
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  // Track if device is in portrait (CSS rotation active) for joystick axis swap
+  const [isPortrait, setIsPortrait] = useState(() => window.matchMedia('(orientation: portrait)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)')
+    const onChange = (e) => setIsPortrait(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   useKeyboard(joystickRef)
 
@@ -273,7 +281,7 @@ export default function JoinPage() {
           <>
             {/* Joystick — bottom left */}
             <div className="arena-ctrl-left">
-              <Joystick inputRef={joystickRef} />
+              <Joystick inputRef={joystickRef} landscape={isPortrait} />
             </div>
             {/* Shoot — bottom right (lobby only) */}
             {phase === 'lobby_wait' && (

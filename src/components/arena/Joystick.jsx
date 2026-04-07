@@ -6,7 +6,11 @@ const KNOB_RADIUS = 22
 /**
  * Virtual joystick — pointer events, water-ripple aesthetic.
  */
-export default function Joystick({ inputRef }) {
+/**
+ * @param {boolean} landscape — true when parent is CSS-rotated 90deg for landscape.
+ *   Swaps pointer axes so the joystick matches the visual direction.
+ */
+export default function Joystick({ inputRef, landscape }) {
   const baseRef = useRef(null)
   const knobRef = useRef(null)
   const anchorRef = useRef(null)
@@ -34,10 +38,13 @@ export default function Joystick({ inputRef }) {
     function onMove(e) {
       if (!anchorRef.current) return
       const { cx, cy } = anchorRef.current
-      let dx = (e.clientX - cx) / BASE_RADIUS
-      let dy = (e.clientY - cy) / BASE_RADIUS
-      const mag = Math.sqrt(dx * dx + dy * dy)
-      if (mag > 1) { dx /= mag; dy /= mag }
+      let vx = (e.clientX - cx) / BASE_RADIUS
+      let vy = (e.clientY - cy) / BASE_RADIUS
+      const mag = Math.sqrt(vx * vx + vy * vy)
+      if (mag > 1) { vx /= mag; vy /= mag }
+      // When CSS-rotated 90deg, swap axes to match visual direction
+      const dx = landscape ? vy : vx
+      const dy = landscape ? -vx : vy
       inputRef.current = { ...(inputRef.current ?? {}), dx, dy }
       updateKnob(dx, dy)
     }
