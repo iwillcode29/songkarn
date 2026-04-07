@@ -11,12 +11,12 @@ export function useRoom(roomId) {
 
   const fetchRoom = useCallback(async () => {
     if (!roomId) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('rooms')
       .select('*')
       .eq('id', roomId)
       .single()
-    setRoom(data)
+    if (!error) setRoom(data)
     setLoading(false)
   }, [roomId])
 

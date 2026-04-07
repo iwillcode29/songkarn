@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { resolveChoice, createBracketPairs, randomWeapon } from '../lib/gameLogic'
 import { useRoom } from '../hooks/useRoom'
 import { usePlayers } from '../hooks/usePlayers'
 import { useMatches } from '../hooks/useMatches'
+import { useReconnect } from '../hooks/useReconnect'
 import CreateRoom from '../components/host/CreateRoom'
 import Lobby from '../components/host/Lobby'
 import BracketView from '../components/host/BracketView'
@@ -33,9 +34,16 @@ export default function HostPage() {
   const [isAdvancing, setIsAdvancing] = useState(false)
   const [isForcing, setIsForcing] = useState(false)
 
-  const { room } = useRoom(roomId)
-  const { players } = usePlayers(roomId)
-  const { matches } = useMatches(roomId)
+  const { room, refetch: refetchRoom } = useRoom(roomId)
+  const { players, refetch: refetchPlayers } = usePlayers(roomId)
+  const { matches, refetch: refetchMatches } = useMatches(roomId)
+
+  useReconnect(
+    useCallback(
+      () => Promise.all([refetchRoom(), refetchPlayers(), refetchMatches()]),
+      [refetchRoom, refetchPlayers, refetchMatches],
+    ),
+  )
 
   // ── Derived state for current round ──────────────────────────
   const currentMatches = useMemo(

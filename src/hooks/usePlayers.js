@@ -12,12 +12,12 @@ export function usePlayers(roomId) {
 
   const fetchPlayers = useCallback(async () => {
     if (!roomId) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('players')
       .select('*')
       .eq('room_id', roomId)
       .order('created_at', { ascending: true })
-    setPlayers(data ?? [])
+    if (!error) setPlayers(data ?? [])
     setLoading(false)
   }, [roomId])
 

@@ -21,15 +21,32 @@ export default function QuizHostView({ room, players }) {
 
   // Quiz broadcast channel — host sends reveal/next events to mobile clients
   useEffect(() => {
-    const ch = supabase.channel(`quiz:${room.id}`, { config: { broadcast: { self: false } } })
-    ch.on('broadcast', { event: 'quiz-pos' }, ({ payload }) => {
-      if (payload?.playerId) {
-        reportedPositionsRef.current.set(payload.playerId, { x: payload.x, y: payload.y })
-      }
-    })
-    ch.subscribe()
-    channelRef.current = ch
-    return () => { supabase.removeChannel(ch); channelRef.current = null }
+    let destroyed = false
+    let ch = null
+
+    function createChannel() {
+      ch = supabase.channel(`quiz:${room.id}`, { config: { broadcast: { self: false } } })
+      ch.on('broadcast', { event: 'quiz-pos' }, ({ payload }) => {
+        if (payload?.playerId) {
+          reportedPositionsRef.current.set(payload.playerId, { x: payload.x, y: payload.y })
+        }
+      })
+      ch.subscribe((status) => {
+        if (destroyed) return
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          supabase.removeChannel(ch)
+          setTimeout(() => { if (!destroyed) createChannel() }, 1000)
+        }
+      })
+      channelRef.current = ch
+    }
+
+    createChannel()
+    return () => {
+      destroyed = true
+      if (ch) supabase.removeChannel(ch)
+      channelRef.current = null
+    }
   }, [room.id])
   const [isRevealing, setIsRevealing] = useState(false)
   const [revealedAnswer, setRevealedAnswer] = useState(null)
@@ -55,10 +72,18 @@ export default function QuizHostView({ room, players }) {
     // Each mobile client will respond with their exact position (quiz-pos event).
     reportedPositionsRef.current.clear()
     setRevealedAnswer(correctAnswer)
-    channelRef.current?.send({
+    // Retry send if channel is reconnecting (e.g. after CHANNEL_ERROR recovery)
+    const revealPayload = {
       type: 'broadcast', event: 'quiz-reveal',
       payload: { correct: correctAnswer, round: room.current_round },
-    })
+    }
+    if (channelRef.current?.state === 'joined') {
+      channelRef.current.send(revealPayload)
+    } else {
+      // Channel not ready — wait briefly and retry once
+      await new Promise((r) => setTimeout(r, 1500))
+      channelRef.current?.send(revealPayload)
+    }
 
     // Wait for mobile clients to report their positions + animation time
     await new Promise((r) => setTimeout(r, 2000))

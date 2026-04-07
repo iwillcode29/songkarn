@@ -12,12 +12,12 @@ export function useMatches(roomId) {
 
   const fetchMatches = useCallback(async () => {
     if (!roomId) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('matches')
       .select('*')
       .eq('room_id', roomId)
       .order('created_at', { ascending: true })
-    setMatches(data ?? [])
+    if (!error) setMatches(data ?? [])
     setLoading(false)
   }, [roomId])
 

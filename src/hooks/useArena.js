@@ -135,6 +135,8 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   const lastBroadcastRef = useRef(0)
   const seqRef = useRef(0)
   const connectedRef = useRef(false)
+  const lastShootRef = useRef(0)
+  const SHOOT_COOLDOWN_MS = 200 // max ~5 shots/sec to avoid flooding the channel
 
   const frozenRef = useRef(frozen)
   frozenRef.current = frozen
@@ -251,7 +253,10 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
 
           if (!playerId && leftIds.length > 0) {
             setTimeout(() => {
-              const currentState = channel.presenceState()
+              // Guard: channel may have been released during the delay
+              const entry = arenaChannels.get(roomId)
+              if (!entry || entry.channel.state === 'closed') return
+              const currentState = entry.channel.presenceState()
               const stillOnline = new Set()
               for (const key of Object.keys(currentState)) {
                 for (const p of currentState[key]) {
@@ -269,6 +274,18 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
           connectedRef.current = status === 'SUBSCRIBED'
           if (status === 'SUBSCRIBED' && playerId) {
             await channel.track({ playerId })
+            // Immediately broadcast current position on (re)connect so
+            // other clients unfreeze this player without waiting for the
+            // next RAF tick.
+            const pos = positionsRef.current.get(playerId)
+            if (pos) {
+              seqRef.current++
+              channel.send({
+                type: 'broadcast',
+                event: BROADCAST_EVENT,
+                payload: { playerId, x: pos.x, y: pos.y, facing: pos.facing, isMoving: pos.isMoving, seq: seqRef.current },
+              })
+            }
           }
         })
     } else {
@@ -286,10 +303,17 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
   }, [roomId, playerId])
 
   // ── RAF game loop ──
+  // Uses requestAnimationFrame when the tab is focused for smooth 60fps,
+  // but falls back to setInterval when unfocused so broadcasts and
+  // rendering continue (browsers throttle/pause RAF in background tabs).
   useEffect(() => {
-    function tick(now) {
-      rafRef.current = requestAnimationFrame(tick)
+    const intervalRef = { id: null }
+    let usingInterval = false
 
+    function tick(now) {
+      if (!usingInterval) rafRef.current = requestAnimationFrame(tick)
+
+      if (!now) now = performance.now()
       const dt = lastTimeRef.current ? now - lastTimeRef.current : 16
       lastTimeRef.current = now
       const lerpT = LERP_SPEED * (dt / 1000) // frame-rate independent lerp factor
@@ -330,10 +354,12 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       }
 
       // 3.5. Shoot — triggered by space bar or mobile shoot button
+      // Cooldown prevents flooding the broadcast channel on rapid input
       if (playerId && !frozenRef.current && joystickRef?.current?.shoot) {
         joystickRef.current = { ...joystickRef.current, shoot: false }
         const pos = positionsRef.current.get(playerId)
-        if (pos) {
+        if (pos && now - lastShootRef.current >= SHOOT_COOLDOWN_MS) {
+          lastShootRef.current = now
           const { vx, vy } = facingToVelocity(pos.facing)
           const proj = {
             id: `${playerId}-${++projSeqRef.current}`,
@@ -407,9 +433,34 @@ export function useArena({ roomId, playerId, players, joystickRef, frozen, onSel
       forceRender()
     }
 
-    rafRef.current = requestAnimationFrame(tick)
-    return () => {
+    function startRAF() {
+      usingInterval = false
+      if (intervalRef.id) { clearInterval(intervalRef.id); intervalRef.id = null }
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    function startInterval() {
+      usingInterval = true
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
+      if (intervalRef.id) clearInterval(intervalRef.id)
+      intervalRef.id = setInterval(() => tick(performance.now()), 100) // 10fps fallback
+    }
+
+    function onVisibility() {
+      if (document.visibilityState === 'visible') startRAF()
+      else startInterval()
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    // Start with the appropriate mode
+    if (document.visibilityState === 'visible') startRAF()
+    else startInterval()
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (intervalRef.id) clearInterval(intervalRef.id)
       lastTimeRef.current = null
     }
   }, [playerId, joystickRef])
