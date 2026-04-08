@@ -68,7 +68,7 @@ export default function Joystick({ inputRef, landscape }) {
       base.removeEventListener('pointercancel', onUp)
       window.removeEventListener('blur', onUp)
     }
-  }, [inputRef, updateKnob])
+  }, [inputRef, updateKnob, landscape])
 
   return (
     <div className="flex items-center justify-center pt-3 pb-5">
