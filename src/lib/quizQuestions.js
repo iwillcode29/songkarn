@@ -101,11 +101,15 @@ function hashString(str) {
 }
 
 /**
- * Pick QUIZ_COUNT random questions from the pool, seeded by roomId.
- * Both host and players call this with the same roomId → same questions.
+ * Pick QUIZ_COUNT random questions from the pool, seeded deterministically.
+ * Both host and players call this with the same seed → same questions.
+ *
+ * @param {string} roomId — room code (fallback seed via hash)
+ * @param {number|null} quizSeed — per-game numeric seed (takes priority when present)
  */
-export function getQuizQuestions(roomId) {
-  const rng = mulberry32(hashString(String(roomId)))
+export function getQuizQuestions(roomId, quizSeed) {
+  const seed = quizSeed != null ? quizSeed : hashString(String(roomId))
+  const rng = mulberry32(seed)
   const indices = Array.from({ length: QUESTION_POOL.length }, (_, i) => i)
   // Fisher-Yates shuffle with seeded RNG
   for (let i = indices.length - 1; i > 0; i--) {

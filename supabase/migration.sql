@@ -76,3 +76,12 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.matches;
 -- ────────────────────────────────────────
 
 -- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS game_mode TEXT NOT NULL DEFAULT 'bracket';
+
+-- ────────────────────────────────────────
+-- 5. QUIZ SEED + COUNTDOWN (run this if upgrading)
+-- quiz_seed: per-game seed so replaying quiz gives different questions.
+-- question_started_at: countdown anchor — both host and players derive timer from this.
+-- ────────────────────────────────────────
+
+-- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS quiz_seed BIGINT DEFAULT NULL;
+-- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS question_started_at TIMESTAMPTZ;

@@ -257,7 +257,7 @@ export default function HostPage() {
             await supabase.from('players').update({ is_alive: true }).eq('room_id', room.id)
             await supabase
               .from('rooms')
-              .update({ status: 'lobby', current_round: 1 })
+              .update({ status: 'lobby', current_round: 1, quiz_seed: null, question_started_at: null })
               .eq('id', room.id)
           } catch (err) {
             console.error('Failed to reset room:', err)

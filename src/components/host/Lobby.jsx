@@ -59,9 +59,12 @@ export default function Lobby({ room, players, onClearRoom }) {
     try {
       // Simple modes (no match rows): set game_mode and flip to playing
       if (mode === 'quiz' || mode === 'random') {
+        const extra = mode === 'quiz'
+          ? { quiz_seed: (Math.random() * 0xFFFFFFFF) | 0, question_started_at: new Date(Date.now() + 2000).toISOString() }
+          : {}
         const { error: roomError } = await supabase
           .from('rooms')
-          .update({ status: 'playing', game_mode: mode })
+          .update({ status: 'playing', game_mode: mode, ...extra })
           .eq('id', room.id)
         if (roomError) console.error('Failed to start game:', roomError)
         return

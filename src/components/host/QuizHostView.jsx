@@ -3,8 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
 import { getQuizQuestions, ZONE_COLORS } from '../../lib/quizQuestions'
 import { getZoneForPosition } from '../../lib/arena/physics'
+import { useCountdown } from '../../hooks/useCountdown'
+import { sfx } from '../../lib/sfx'
 import Arena from '../arena/Arena'
 import QuizZones from '../arena/QuizZones'
+import CountdownRing from '../ui/CountdownRing'
 
 /**
  * Host view for quiz mode. Shows the arena with 4 zones,
@@ -53,75 +56,101 @@ export default function QuizHostView({ room, players }) {
   const [isAdvancing, setIsAdvancing] = useState(false)
   const [revealStats, setRevealStats] = useState(null) // { survived, eliminated }
 
-  const questions = useMemo(() => getQuizQuestions(room.id), [room.id])
+  const questions = useMemo(() => getQuizQuestions(room.id, room.quiz_seed), [room.id, room.quiz_seed])
   const questionIndex = room.current_round - 1
   const question = questions[questionIndex] ?? null
   const isLastQuestion = questionIndex >= questions.length - 1
   const alivePlayers = useMemo(() => players.filter((p) => p.is_alive), [players])
 
   const allRevealed = revealedAnswer !== null
+
+  // ── 15-second countdown per question ──
+  const { secondsLeft, isExpired } = useCountdown(
+    allRevealed ? null : room.question_started_at,
+    15,
+  )
   const revealingRef = useRef(false) // synchronous guard against double-tap
+
+  // Audio beep for last 3 seconds
+  useEffect(() => {
+    if (!allRevealed && secondsLeft <= 3 && secondsLeft > 0) {
+      sfx.countdown(secondsLeft)
+    }
+  }, [secondsLeft, allRevealed])
+
+  // Auto-reveal when countdown expires (guard against empty players on host refresh)
+  const handleRevealRef = useRef(null)
+  useEffect(() => {
+    if (isExpired && !allRevealed && !revealingRef.current && alivePlayers.length > 0) {
+      handleRevealRef.current?.()
+    }
+  }, [isExpired, allRevealed, alivePlayers.length])
 
   const handleReveal = useCallback(async () => {
     if (revealingRef.current || isRevealing || !question) return
     revealingRef.current = true
     setIsRevealing(true)
 
-    const correctAnswer = question.correct
-    const aliveSnapshot = [...alivePlayers]
+    try {
+      const correctAnswer = question.correct
+      const aliveSnapshot = [...alivePlayers]
 
-    // Clear previously reported positions and broadcast reveal to mobile clients.
-    // Each mobile client will respond with their exact position (quiz-pos event).
-    reportedPositionsRef.current.clear()
-    setRevealedAnswer(correctAnswer)
-    // Retry send if channel is reconnecting (e.g. after CHANNEL_ERROR recovery)
-    const revealPayload = {
-      type: 'broadcast', event: 'quiz-reveal',
-      payload: { correct: correctAnswer, round: room.current_round },
-    }
-    if (channelRef.current?.state === 'joined') {
-      channelRef.current.send(revealPayload)
-    } else {
-      // Channel not ready — wait briefly and retry once
-      await new Promise((r) => setTimeout(r, 1500))
-      channelRef.current?.send(revealPayload)
-    }
-
-    // Wait for mobile clients to report their positions + animation time.
-    // 4s gives enough time for slow party WiFi round-trips.
-    await new Promise((r) => setTimeout(r, 4000))
-
-    // Use positions reported by mobile clients (exact, no lag).
-    // Fall back to host's broadcast-target positions if a client didn't report.
-    // Players with no position at all are NOT eliminated — skip them gracefully.
-    const hostSnapshot = new Map(arenaRef.current)
-    const eliminatedIds = []
-
-    for (const p of aliveSnapshot) {
-      const pos = reportedPositionsRef.current.get(p.id) ?? hostSnapshot.get(p.id)
-      if (!pos) continue // no position data — don't punish for connectivity
-      const zone = getZoneForPosition(pos.x, pos.y)
-      if (zone !== correctAnswer) {
-        eliminatedIds.push(p.id)
+      // Clear previously reported positions and broadcast reveal to mobile clients.
+      // Each mobile client will respond with their exact position (quiz-pos event).
+      reportedPositionsRef.current.clear()
+      setRevealedAnswer(correctAnswer)
+      // Retry send if channel is reconnecting (e.g. after CHANNEL_ERROR recovery)
+      const revealPayload = {
+        type: 'broadcast', event: 'quiz-reveal',
+        payload: { correct: correctAnswer, round: room.current_round },
       }
+      if (channelRef.current?.state === 'joined') {
+        channelRef.current.send(revealPayload)
+      } else {
+        // Channel not ready — wait briefly and retry once
+        await new Promise((r) => setTimeout(r, 1500))
+        channelRef.current?.send(revealPayload)
+      }
+
+      // Wait for mobile clients to report their positions + animation time.
+      // 4s gives enough time for slow party WiFi round-trips.
+      await new Promise((r) => setTimeout(r, 4000))
+
+      // Use positions reported by mobile clients (exact, no lag).
+      // Fall back to host's broadcast-target positions if a client didn't report.
+      // Players with no position at all are NOT eliminated — skip them gracefully.
+      const hostSnapshot = new Map(arenaRef.current)
+      const eliminatedIds = []
+
+      for (const p of aliveSnapshot) {
+        const pos = reportedPositionsRef.current.get(p.id) ?? hostSnapshot.get(p.id)
+        if (!pos) continue // no position data — don't punish for connectivity
+        const zone = getZoneForPosition(pos.x, pos.y)
+        if (zone !== correctAnswer) {
+          eliminatedIds.push(p.id)
+        }
+      }
+
+      // Eliminate wrong players
+      if (eliminatedIds.length > 0) {
+        await supabase.from('players').update({ is_alive: false }).in('id', eliminatedIds)
+      }
+
+      const survivorCount = aliveSnapshot.length - eliminatedIds.length
+      setRevealStats({ survived: survivorCount, eliminated: eliminatedIds.length })
+
+      // End game if no survivors or last question
+      if (survivorCount <= 0 || isLastQuestion) {
+        await supabase.from('rooms').update({ status: 'finished' }).eq('id', room.id)
+      }
+    } finally {
+      setIsRevealing(false)
+      revealingRef.current = false
     }
-
-    // Eliminate wrong players
-    if (eliminatedIds.length > 0) {
-      await supabase.from('players').update({ is_alive: false }).in('id', eliminatedIds)
-    }
-
-    const survivorCount = aliveSnapshot.length - eliminatedIds.length
-    setRevealStats({ survived: survivorCount, eliminated: eliminatedIds.length })
-
-    // End game if no survivors or last question
-    if (survivorCount <= 0 || isLastQuestion) {
-      await supabase.from('rooms').update({ status: 'finished' }).eq('id', room.id)
-    }
-
-    setIsRevealing(false)
-    revealingRef.current = false
   }, [isRevealing, question, alivePlayers, room.current_round, isLastQuestion, room.id])
+
+  // Keep ref current so auto-reveal effect always calls the latest closure
+  useEffect(() => { handleRevealRef.current = handleReveal }, [handleReveal])
 
   async function handleNextQuestion() {
     if (isAdvancing) return
@@ -129,7 +158,7 @@ export default function QuizHostView({ room, players }) {
 
     const { error } = await supabase
       .from('rooms')
-      .update({ current_round: room.current_round + 1 })
+      .update({ current_round: room.current_round + 1, question_started_at: new Date().toISOString() })
       .eq('id', room.id)
 
     if (!error) {
@@ -179,8 +208,9 @@ export default function QuizHostView({ room, players }) {
             </p>
           </div>
 
-          {/* Action button */}
-          <div className="flex gap-3">
+          {/* Action button + countdown */}
+          <div className="flex items-center gap-3">
+            {!allRevealed && <CountdownRing secondsLeft={secondsLeft} total={15} size={56} />}
             <AnimatePresence mode="wait">
               {!allRevealed && (
                 <motion.button

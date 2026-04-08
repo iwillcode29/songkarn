@@ -9,6 +9,8 @@ import { useReconnect } from '../hooks/useReconnect'
 import { sfx } from '../lib/sfx'
 import { WEAPONS } from '../lib/gameLogic'
 import { getQuizQuestions, ZONE_COLORS } from '../lib/quizQuestions'
+import { useCountdown } from '../hooks/useCountdown'
+import CountdownRing from '../components/ui/CountdownRing'
 import { getZoneForPosition } from '../lib/arena/physics'
 import JoinForm from '../components/mobile/JoinForm'
 import PickScreen from '../components/mobile/PickScreen'
@@ -190,7 +192,13 @@ export default function JoinPage() {
   }, [matches, room, playerId])
 
   const isQuiz = room?.game_mode === 'quiz'
-  const questions = useMemo(() => roomId ? getQuizQuestions(roomId) : [], [roomId])
+  const questions = useMemo(() => roomId ? getQuizQuestions(roomId, room?.quiz_seed) : [], [roomId, room?.quiz_seed])
+
+  // Countdown — driven by host's question_started_at in DB
+  const { secondsLeft: quizSecondsLeft } = useCountdown(
+    isQuiz && room?.question_started_at ? room.question_started_at : null,
+    15,
+  )
 
   // Unlock SFX on first touch interaction (JoinForm submit)
   useEffect(() => {
@@ -392,7 +400,8 @@ export default function JoinPage() {
           </div>
         )}
         {phase === 'quiz_playing' && !quizReveal && (
-          <div className="arena-status-overlay">
+          <div className="arena-status-overlay" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CountdownRing secondsLeft={quizSecondsLeft} total={15} size={36} />
             <p className="text-xs font-body" style={{ color: 'var(--cream-400)' }}>Run to your answer zone!</p>
           </div>
         )}
@@ -418,8 +427,10 @@ export default function JoinPage() {
             <button
               className="arena-quiz-toggle"
               onClick={() => setQuizPopupOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <span style={{ fontSize: 14 }}>Q{room.current_round}</span>
+              {!quizReveal && <CountdownRing secondsLeft={quizSecondsLeft} total={15} size={24} />}
             </button>
 
             {/* Auto-show popup on new question */}
@@ -431,6 +442,7 @@ export default function JoinPage() {
               quizReveal={quizReveal}
               open={quizPopupOpen}
               onClose={() => setQuizPopupOpen(false)}
+              secondsLeft={quizReveal ? null : quizSecondsLeft}
             />
           </>
         )}
@@ -451,9 +463,12 @@ export default function JoinPage() {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm mb-2 flex-shrink-0"
         >
-          <p className="text-xs font-body mb-1" style={{ color: 'var(--cream-400)' }}>
-            Question {room.current_round} / {questions.length}
-          </p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-body" style={{ color: 'var(--cream-400)' }}>
+              Question {room.current_round} / {questions.length}
+            </p>
+            {!quizReveal && <CountdownRing secondsLeft={quizSecondsLeft} total={15} size={32} />}
+          </div>
           <p className="text-lg font-bold leading-snug mb-2" style={{ color: 'var(--cream-50)' }}>
             {question.question}
           </p>
@@ -780,15 +795,18 @@ function ShootButton({ joystickRef }) {
   )
 }
 
-function QuizPopup({ question, questionIndex, totalQuestions, currentRound, quizReveal, open, onClose }) {
+function QuizPopup({ question, questionIndex, totalQuestions, currentRound, quizReveal, open, onClose, secondsLeft }) {
   if (!open || !question) return null
   return (
     <div className="arena-quiz-popup">
       <div className="arena-quiz-popup-card">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-body" style={{ color: 'var(--cream-400)' }}>
-            Q{currentRound} / {totalQuestions}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-body" style={{ color: 'var(--cream-400)' }}>
+              Q{currentRound} / {totalQuestions}
+            </p>
+            {secondsLeft != null && <CountdownRing secondsLeft={secondsLeft} total={15} size={24} />}
+          </div>
           <button onClick={onClose} className="text-xs font-bold px-2 py-0.5 rounded" style={{ color: 'var(--cream-400)', background: 'rgba(255,255,255,0.06)' }}>
             Close
           </button>
