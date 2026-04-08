@@ -56,6 +56,16 @@ export default function QuizHostView({ room, players }) {
   const [isAdvancing, setIsAdvancing] = useState(false)
   const [revealStats, setRevealStats] = useState(null) // { survived, eliminated }
 
+  // Reset reveal state when room advances to a new round.
+  // This avoids the race where local state resets before the fresh
+  // question_started_at arrives via realtime, which caused the old
+  // (expired) timestamp to auto-reveal the next question immediately.
+  useEffect(() => {
+    setRevealedAnswer(null)
+    setRevealStats(null)
+    reportedPositionsRef.current.clear()
+  }, [room.current_round])
+
   const questions = useMemo(() => getQuizQuestions(room.id, room.quiz_seed), [room.id, room.quiz_seed])
   const questionIndex = room.current_round - 1
   const question = questions[questionIndex] ?? null
@@ -162,9 +172,7 @@ export default function QuizHostView({ room, players }) {
       .eq('id', room.id)
 
     if (!error) {
-      setRevealedAnswer(null)
-      setRevealStats(null)
-      reportedPositionsRef.current.clear()
+      // State reset handled by useEffect on room.current_round
       channelRef.current?.send({
         type: 'broadcast', event: 'quiz-next',
         payload: { round: room.current_round + 1 },
