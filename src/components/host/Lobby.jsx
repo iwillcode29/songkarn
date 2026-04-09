@@ -348,12 +348,14 @@ export default function Lobby({ room, players, onClearRoom }) {
 
         {/* Arena */}
         {players.length > 0 && (
-          <Arena
-            roomId={room.id}
-            playerId={null}
-            players={players}
-            joystickRef={null}
-          />
+          <div className="max-w-3xl mx-auto">
+            <Arena
+              roomId={room.id}
+              playerId={null}
+              players={players}
+              joystickRef={null}
+            />
+          </div>
         )}
       </div>
     </div>

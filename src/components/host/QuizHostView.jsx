@@ -338,14 +338,16 @@ export default function QuizHostView({ room, players }) {
         </AnimatePresence>
 
         {/* Arena with zones */}
-        <Arena
-          roomId={room.id}
-          playerId={null}
-          players={alivePlayers}
-          joystickRef={null}
-          quizOverlay={quizOverlay}
-          positionsMapRef={arenaRef}
-        />
+        <div className="max-w-3xl mx-auto">
+          <Arena
+            roomId={room.id}
+            playerId={null}
+            players={alivePlayers}
+            joystickRef={null}
+            quizOverlay={quizOverlay}
+            positionsMapRef={arenaRef}
+          />
+        </div>
       </div>
     </div>
   )
