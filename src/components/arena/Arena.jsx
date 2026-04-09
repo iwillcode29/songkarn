@@ -299,27 +299,27 @@ const GroundTexture = memo(function GroundTexture() {
         <rect width={WORLD_WIDTH} height={WORLD_HEIGHT} fill="url(#grass-tile)" />
 
         {/* Dirt path — horizontal across middle */}
-        <rect x={0} y={195} width={WORLD_WIDTH} height={60} fill="url(#dirt-tile)" />
+        <rect x={0} y={293} width={WORLD_WIDTH} height={90} fill="url(#dirt-tile)" />
         {/* Path edges — dithered grass/dirt transition */}
         {PATH_EDGES.map(i => (
           <g key={`path-edge-${i}`}>
-            <rect x={i * 8} y={193 + (i % 3)} width={4} height={2} fill="#5a7040" />
-            <rect x={i * 8 + 4} y={254 - (i % 3)} width={4} height={2} fill="#5a7040" />
+            <rect x={i * 8} y={290 + (i % 3)} width={4} height={2} fill="#5a7040" />
+            <rect x={i * 8 + 4} y={381 - (i % 3)} width={4} height={2} fill="#5a7040" />
           </g>
         ))}
 
         {/* Stone courtyard — center area */}
-        <rect x={300} y={150} width={200} height={150} fill="url(#stone-tile)" />
+        <rect x={450} y={225} width={300} height={225} fill="url(#stone-tile)" />
         {/* Stone edges */}
-        <rect x={300} y={150} width={200} height={2} fill="#5a5a4e" />
-        <rect x={300} y={298} width={200} height={2} fill="#5a5a4e" />
-        <rect x={300} y={150} width={2} height={150} fill="#5a5a4e" />
-        <rect x={498} y={150} width={2} height={150} fill="#5a5a4e" />
+        <rect x={450} y={225} width={300} height={2} fill="#5a5a4e" />
+        <rect x={450} y={448} width={300} height={2} fill="#5a5a4e" />
+        <rect x={450} y={225} width={2} height={225} fill="#5a5a4e" />
+        <rect x={748} y={225} width={2} height={225} fill="#5a5a4e" />
 
         {/* Grass color variation patches */}
-        <rect x={50} y={60} width={80} height={50} fill="#4f7340" opacity={0.6} />
-        <rect x={600} y={320} width={100} height={60} fill="#436333" opacity={0.5} />
-        <rect x={150} y={340} width={70} height={40} fill="#4f7340" opacity={0.4} />
+        <rect x={75} y={90} width={120} height={75} fill="#4f7340" opacity={0.6} />
+        <rect x={900} y={480} width={150} height={90} fill="#436333" opacity={0.5} />
+        <rect x={225} y={510} width={105} height={60} fill="#4f7340" opacity={0.4} />
       </svg>
     </div>
   )
@@ -361,12 +361,12 @@ const WaterPuddles = memo(function WaterPuddles() {
 })
 
 const PUDDLES = [
-  { x: 80, y: 120, w: 48, h: 16, pw: 12, ph: 4 },
-  { x: 350, y: 320, w: 56, h: 20, pw: 14, ph: 5 },
-  { x: 600, y: 180, w: 40, h: 12, pw: 10, ph: 3 },
-  { x: 180, y: 380, w: 44, h: 16, pw: 11, ph: 4 },
-  { x: 520, y: 80, w: 36, h: 12, pw: 9, ph: 3 },
-  { x: 700, y: 360, w: 48, h: 16, pw: 12, ph: 4 },
+  { x: 120, y: 180, w: 48, h: 16, pw: 12, ph: 4 },
+  { x: 525, y: 480, w: 56, h: 20, pw: 14, ph: 5 },
+  { x: 900, y: 270, w: 40, h: 12, pw: 10, ph: 3 },
+  { x: 270, y: 570, w: 44, h: 16, pw: 11, ph: 4 },
+  { x: 780, y: 120, w: 36, h: 12, pw: 9, ph: 3 },
+  { x: 1050, y: 540, w: 48, h: 16, pw: 12, ph: 4 },
 ]
 
 /* ─── Pixel scenery props ─── */
@@ -374,30 +374,30 @@ const SceneryProps = memo(function SceneryProps() {
   return (
     <>
       {/* Trees */}
-      <PixelTree x={15} y={5} size={36} variant="round" />
-      <PixelTree x={725} y={10} size={32} variant="round" flip />
-      <PixelTree x={55} y={355} size={28} variant="bush" />
-      <PixelTree x={715} y={365} size={24} variant="bush" flip />
+      <PixelTree x={23} y={8} size={54} variant="round" />
+      <PixelTree x={1088} y={15} size={48} variant="round" flip />
+      <PixelTree x={83} y={533} size={42} variant="bush" />
+      <PixelTree x={1073} y={548} size={36} variant="bush" flip />
 
       {/* Lanterns */}
-      <PixelLantern x={160} y={6} size={26} />
-      <PixelLantern x={450} y={3} size={24} />
-      <PixelLantern x={640} y={8} size={26} />
+      <PixelLantern x={240} y={9} size={39} />
+      <PixelLantern x={675} y={5} size={36} />
+      <PixelLantern x={960} y={12} size={39} />
 
       {/* Flowers — jasmine & marigold */}
-      <PixelFlower x={380} y={395} color="#fde68a" size={14} />
-      <PixelFlower x={200} y={135} color="#f9a8d4" size={12} />
-      <PixelFlower x={680} y={225} color="#fb923c" size={13} />
-      <PixelFlower x={120} y={75} color="#fde68a" size={11} />
-      <PixelFlower x={560} y={375} color="#f9a8d4" size={12} />
+      <PixelFlower x={570} y={593} color="#fde68a" size={21} />
+      <PixelFlower x={300} y={203} color="#f9a8d4" size={18} />
+      <PixelFlower x={1020} y={338} color="#fb923c" size={20} />
+      <PixelFlower x={180} y={113} color="#fde68a" size={17} />
+      <PixelFlower x={840} y={563} color="#f9a8d4" size={18} />
 
       {/* Water splashes — decorative */}
-      <PixelSplash x={300} y={65} size={16} />
-      <PixelSplash x={550} y={345} size={14} />
-      <PixelSplash x={130} y={255} size={12} />
+      <PixelSplash x={450} y={98} size={24} />
+      <PixelSplash x={825} y={518} size={21} />
+      <PixelSplash x={195} y={383} size={18} />
 
       {/* Temple gate — background element */}
-      <PixelTempleGate x={365} y={410} size={70} />
+      <PixelTempleGate x={548} y={615} size={105} />
     </>
   )
 })

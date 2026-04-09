@@ -85,3 +85,10 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.matches;
 
 -- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS quiz_seed BIGINT DEFAULT NULL;
 -- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS question_started_at TIMESTAMPTZ;
+
+-- ────────────────────────────────────────
+-- 6. QUIZ CATEGORY (run this if upgrading)
+-- quiz_category: selected category for quiz mode (null = all categories).
+-- ────────────────────────────────────────
+
+-- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS quiz_category TEXT DEFAULT NULL;

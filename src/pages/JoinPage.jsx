@@ -192,7 +192,7 @@ export default function JoinPage() {
   }, [matches, room, playerId])
 
   const isQuiz = room?.game_mode === 'quiz'
-  const questions = useMemo(() => roomId ? getQuizQuestions(roomId, room?.quiz_seed) : [], [roomId, room?.quiz_seed])
+  const questions = useMemo(() => roomId ? getQuizQuestions(roomId, room?.quiz_seed, room?.quiz_category) : [], [roomId, room?.quiz_seed, room?.quiz_category])
 
   // Countdown — driven by host's question_started_at in DB
   const { secondsLeft: quizSecondsLeft } = useCountdown(

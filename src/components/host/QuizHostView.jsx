@@ -66,7 +66,7 @@ export default function QuizHostView({ room, players }) {
     reportedPositionsRef.current.clear()
   }, [room.current_round])
 
-  const questions = useMemo(() => getQuizQuestions(room.id, room.quiz_seed), [room.id, room.quiz_seed])
+  const questions = useMemo(() => getQuizQuestions(room.id, room.quiz_seed, room.quiz_category), [room.id, room.quiz_seed, room.quiz_category])
   const questionIndex = room.current_round - 1
   const question = questions[questionIndex] ?? null
   const isLastQuestion = questionIndex >= questions.length - 1

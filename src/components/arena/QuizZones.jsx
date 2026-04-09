@@ -53,7 +53,7 @@ export default function QuizZones({ question, revealedAnswer }) {
             <span
               className="font-black select-none"
               style={{
-                fontSize: 48,
+                fontSize: 72,
                 color: isCorrect ? '#22c55e' : isWrong ? 'rgba(255,255,255,0.15)' : color.text,
                 opacity: isWrong ? 0.4 : 0.7,
                 lineHeight: 1,
@@ -66,10 +66,10 @@ export default function QuizZones({ question, revealedAnswer }) {
             <span
               className="font-semibold text-center px-4 select-none"
               style={{
-                fontSize: 13,
+                fontSize: 20,
                 color: isCorrect ? '#bbf7d0' : isWrong ? 'rgba(255,255,255,0.15)' : color.text,
                 opacity: isWrong ? 0.3 : 0.8,
-                maxWidth: w - 20,
+                maxWidth: w - 30,
                 transition: 'color 0.3s, opacity 0.3s',
               }}
             >
@@ -77,7 +77,7 @@ export default function QuizZones({ question, revealedAnswer }) {
             </span>
             {/* Correct checkmark */}
             {isCorrect && (
-              <span style={{ fontSize: 28, marginTop: 2 }}>✅</span>
+              <span style={{ fontSize: 42, marginTop: 3 }}>✅</span>
             )}
           </div>
         )
@@ -89,7 +89,7 @@ export default function QuizZones({ question, revealedAnswer }) {
         style={{
           left: halfW - 1,
           top: 0,
-          width: 2,
+          width: 3,
           height: WORLD_HEIGHT,
           background: 'rgba(255,255,255,0.08)',
         }}
@@ -100,7 +100,7 @@ export default function QuizZones({ question, revealedAnswer }) {
           left: 0,
           top: halfH - 1,
           width: WORLD_WIDTH,
-          height: 2,
+          height: 3,
           background: 'rgba(255,255,255,0.08)',
         }}
       />

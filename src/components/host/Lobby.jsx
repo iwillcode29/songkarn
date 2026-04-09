@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from '../../lib/supabase'
 import { createBracketPairs } from '../../lib/gameLogic'
+import { QUIZ_CATEGORIES } from '../../lib/quizQuestions'
 import Arena from '../arena/Arena'
 import { LaiThaiDivider, CornerOrnament } from '../ThaiDecor'
 import { sfx } from '../../lib/sfx'
@@ -34,6 +35,7 @@ const GAME_MODES = [
 export default function Lobby({ room, players, onClearRoom }) {
   const [starting, setStarting] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const joinUrl = `${window.location.origin}/join/${room.id}`
 
   // Unlock audio + start lobby BGM on first click
@@ -49,7 +51,7 @@ export default function Lobby({ room, players, onClearRoom }) {
     }
   }, [])
 
-  async function handleStartGame(mode) {
+  async function handleStartGame(mode, quizCategory) {
     sfx.unlock()
     sfx.bgmStop()
     const minPlayers = GAME_MODES.find((m) => m.id === mode)?.minPlayers ?? 2
@@ -60,7 +62,11 @@ export default function Lobby({ room, players, onClearRoom }) {
       // Simple modes (no match rows): set game_mode and flip to playing
       if (mode === 'quiz' || mode === 'random') {
         const extra = mode === 'quiz'
-          ? { quiz_seed: (Math.random() * 0xFFFFFFFF) | 0, question_started_at: new Date(Date.now() + 2000).toISOString() }
+          ? {
+              quiz_seed: (Math.random() * 0xFFFFFFFF) | 0,
+              question_started_at: new Date(Date.now() + 2000).toISOString(),
+              quiz_category: quizCategory || null,
+            }
           : {}
         const { error: roomError } = await supabase
           .from('rooms')
@@ -249,7 +255,7 @@ export default function Lobby({ room, players, onClearRoom }) {
                     key={m.id}
                     whileHover={canStart ? { scale: 1.02 } : {}}
                     whileTap={canStart ? { scale: 0.98 } : {}}
-                    onClick={() => handleStartGame(m.id)}
+                    onClick={() => m.id === 'quiz' ? setShowCategoryPicker(true) : handleStartGame(m.id)}
                     disabled={!canStart || starting}
                     className="flex-1 py-3 rounded-xl transition-all text-center"
                     style={canStart && !starting ? {
@@ -277,6 +283,68 @@ export default function Lobby({ room, players, onClearRoom }) {
             <LaiThaiDivider className="mx-auto mt-2 opacity-30" />
           </motion.div>
         </div>
+
+        {/* Quiz category picker */}
+        <AnimatePresence>
+          {showCategoryPicker && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setShowCategoryPicker(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 16 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 8 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                className="sk-surface rounded-2xl p-6 w-full max-w-md mx-4"
+                style={{ border: '1px solid rgba(232,184,74,0.15)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-2xl font-black mb-1 sk-gold-text">Quiz Category</h3>
+                <p className="text-sm font-body mb-5" style={{ color: 'var(--cream-400)' }}>
+                  Pick a topic for this round
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {QUIZ_CATEGORIES.map((cat) => (
+                    <motion.button
+                      key={cat.id}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => {
+                        setShowCategoryPicker(false)
+                        handleStartGame('quiz', cat.id)
+                      }}
+                      disabled={starting}
+                      className="flex items-center gap-3 rounded-xl py-3 px-4 text-left transition-colors"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(232,184,74,0.1)'
+                        e.currentTarget.style.borderColor = 'rgba(232,184,74,0.25)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+                      }}
+                    >
+                      <span className="text-2xl">{cat.emoji}</span>
+                      <span className="font-semibold text-sm" style={{ color: 'var(--cream-100)' }}>
+                        {cat.label}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Arena */}
         {players.length > 0 && (

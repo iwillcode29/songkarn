@@ -2,9 +2,9 @@
 // Arena physics — pure functions, no React / no network
 // ─────────────────────────────────────────────────
 
-export const WORLD_WIDTH = 800
-export const WORLD_HEIGHT = 450
-export const PLAYER_RADIUS = 20
+export const WORLD_WIDTH = 1200
+export const WORLD_HEIGHT = 675
+export const PLAYER_RADIUS = 14
 export const MOVE_SPEED = 150 // logical px per second
 
 export const MAX_HP = 50
