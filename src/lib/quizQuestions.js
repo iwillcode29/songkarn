@@ -62,6 +62,18 @@ const QUESTION_POOL = [
   { cat: 'food', question: 'What color is wasabi?', a: 'Red', b: 'Yellow', c: 'Green', d: 'Brown', correct: 'c' },
   { cat: 'food', question: 'Where did pizza originate?', a: 'Greece', b: 'Italy', c: 'USA', d: 'Turkey', correct: 'b' },
 
+  // ── Songkran ──
+  { cat: 'songkran', question: 'When is Songkran traditionally celebrated in Thailand?', a: 'January 1–3', b: 'April 13–15', c: 'March 20–22', d: 'December 25–27', correct: 'b' },
+  { cat: 'songkran', question: 'What does the word "Songkran" originate from?', a: 'A Thai word meaning "happiness"', b: 'A Khmer word meaning "rain season"', c: 'A Sanskrit word meaning "passage"', d: 'A Pali word meaning "celebration"', correct: 'c' },
+  { cat: 'songkran', question: 'What does water symbolize during Songkran?', a: 'Wealth and prosperity', b: 'Cleansing, purification, and blessings', c: 'Harvest and fertility', d: 'Victory and power', correct: 'b' },
+  { cat: 'songkran', question: 'What is "rod nam dam hua"?', a: 'A traditional Thai dance', b: 'A Thai dessert eaten during Songkran', c: 'Pouring scented water over elders\' hands to show respect', d: 'A water fight competition', correct: 'c' },
+  { cat: 'songkran', question: 'Which activity is commonly performed at temples during Songkran?', a: 'Flying kites', b: 'Pouring water over Buddha images and making merit', c: 'Lighting fireworks', d: 'Running marathons', correct: 'b' },
+  { cat: 'songkran', question: 'Songkran also marks which occasion?', a: 'Thai New Year', b: 'Thai Independence Day', c: "The King's Birthday", d: "Buddha's Enlightenment Day", correct: 'a' },
+  { cat: 'songkran', question: 'Which country also celebrates a similar water festival?', a: 'Japan', b: 'Myanmar (Thingyan)', c: 'South Korea', d: 'China', correct: 'b' },
+  { cat: 'songkran', question: "What material is traditionally used to create a paste applied to people's faces during Songkran?", a: 'Rice flour', b: 'Turmeric powder', c: 'Thanaka (din sor pong)', d: 'Coconut oil', correct: 'c' },
+  { cat: 'songkran', question: 'What did UNESCO recognize Songkran as in 2023?', a: 'A World Heritage Site', b: 'An Intangible Cultural Heritage of Humanity', c: 'A Global Holiday', d: 'A Protected National Event', correct: 'b' },
+  { cat: 'songkran', question: 'What do many Thai people traditionally do on the first day of Songkran (April 13)?', a: 'Have a water fight in the streets', b: 'Clean their homes and visit temples', c: 'Exchange gifts with friends', d: 'Wear costumes and dance', correct: 'b' },
+
   // ── Fun & Random ──
   { cat: 'fun', question: 'How many colors are in a rainbow?', a: '5', b: '6', c: '7', d: '8', correct: 'c' },
   { cat: 'fun', question: 'Which hand do most people write with?', a: 'Left', b: 'Right', c: 'Both equally', d: 'It varies by country', correct: 'b' },
@@ -110,6 +122,7 @@ export const QUIZ_CATEGORIES = [
   { id: 'science', emoji: '🔬', label: 'Science & Space' },
   { id: 'geography', emoji: '🌍', label: 'Geography' },
   { id: 'food', emoji: '🍜', label: 'Food & Culture' },
+  { id: 'songkran', emoji: '💦', label: 'Songkran' },
   { id: 'fun', emoji: '🎲', label: 'Fun & Random' },
 ]
 
