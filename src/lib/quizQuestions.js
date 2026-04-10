@@ -74,6 +74,18 @@ const QUESTION_POOL = [
   { cat: 'songkran', question: 'Which food is commonly prepared during Songkran?', a: 'Sushi', b: 'Khao Chae (rice soaked in cool jasmine water)', c: 'Pad Thai', d: 'Som Tam', correct: 'b' },
   { cat: 'songkran', question: "In what year was Songkran inscribed on UNESCO's Intangible Cultural Heritage list?", a: '2018', b: '2020', c: '2023', d: '2015', correct: 'c' },
 
+  // ── Songkran Advance ──
+  { cat: 'songkran_advance', question: 'The word "Songkran" is derived from which ancient language?', a: 'Pali', b: 'Sanskrit', c: 'Khmer', d: 'Tamil', correct: 'b' },
+  { cat: 'songkran_advance', question: "Songkran marks the sun's transition into which zodiac sign?", a: 'Pisces', b: 'Aquarius', c: 'Aries (Mesha Rashi)', d: 'Taurus', correct: 'c' },
+  { cat: 'songkran_advance', question: 'How many Songkran Ladies (Nang Songkran) are there in Thai tradition, and what do they represent?', a: '5 — the five elements', b: '7 — each corresponding to a day of the week', c: '12 — one for each month', d: '9 — the nine celestial bodies', correct: 'b' },
+  { cat: 'songkran_advance', question: 'Which ancient Thai text contains the legend of Nang Songkran and the god Kabinlaphrom (Brahma)?', a: 'Traiphum Phra Ruang', b: 'Phra Aphai Mani', c: 'Thammathibet Scripture', d: 'Ramakien', correct: 'c' },
+  { cat: 'songkran_advance', question: "Why must Nang Songkran carry Kabinlaphrom's severed head on a tray?", a: 'As a warning to mortals', b: 'It would burn the earth if placed on the ground, dry the ocean if in water, and scorch the sky if thrown in the air', c: "To honor the god's sacrifice", d: 'As a symbol of impermanence', correct: 'b' },
+  { cat: 'songkran_advance', question: 'In the traditional Thai calendar system, Songkran originally determined the start of which era count?', a: 'Buddhist Era (B.E.)', b: 'Chula Sakarat (Lesser Era)', c: 'Rattanakosin Era', d: 'Maha Sakarat (Greater Era)', correct: 'b' },
+  { cat: 'songkran_advance', question: 'In which year did Thailand officially change the start of the new year from April (Songkran) to January 1?', a: '1888', b: '1940 (effective 1941)', c: '1932', d: '1950', correct: 'b' },
+  { cat: 'songkran_advance', question: 'The ritual of bathing Buddha images is known as "Song Nam Phra." What type of water is traditionally considered most sacred?', a: 'Rainwater collected on a full moon night', b: 'Nam Ob — water scented with dried flowers and herbs', c: 'Water from the Chao Phraya River', d: 'Boiled holy water blessed by nine monks', correct: 'b' },
+  { cat: 'songkran_advance', question: 'Khao Chae, the iconic Songkran dish, has its origins in which cultural tradition?', a: 'Lao', b: 'Chinese', c: 'Mon', d: 'Malay', correct: 'c' },
+  { cat: 'songkran_advance', question: 'UNESCO inscribed Songkran in 2023. Which specific aspect did the nomination emphasize beyond the water festival?', a: 'The economic impact of tourism', b: 'The tradition of water splashing as a sport', c: 'Paying respect to elders, merit-making, and community bonding rituals', d: 'The international popularity of the event', correct: 'c' },
+
   // ── Fun & Random ──
   { cat: 'fun', question: 'How many colors are in a rainbow?', a: '5', b: '6', c: '7', d: '8', correct: 'c' },
   { cat: 'fun', question: 'Which hand do most people write with?', a: 'Left', b: 'Right', c: 'Both equally', d: 'It varies by country', correct: 'b' },
@@ -123,6 +135,7 @@ export const QUIZ_CATEGORIES = [
   { id: 'geography', emoji: '🌍', label: 'Geography' },
   { id: 'food', emoji: '🍜', label: 'Food & Culture' },
   { id: 'songkran', emoji: '💦', label: 'Songkran' },
+  { id: 'songkran_advance', emoji: '🏛️', label: 'Songkran Advance' },
   { id: 'fun', emoji: '🎲', label: 'Fun & Random' },
 ]
 
