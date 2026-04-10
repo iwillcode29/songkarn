@@ -166,17 +166,13 @@ export default function JoinPage() {
     }
   }, [roomId])
 
-  // Clear stale playerId from a previous game — only for IDs loaded from localStorage.
-  // IDs set this session (from join form) are never cleared here.
+  // Clean up stale playerId in localStorage (from a previous game).
+  // The phase logic already shows the join form immediately — this just removes the dead key.
   useEffect(() => {
-    if (!playerId || !fromStorageRef.current || playersLoading || !room || room.status !== 'lobby') return
-    if (players.find((p) => p.id === playerId)) return // player exists — not stale
-    const timer = setTimeout(() => {
+    if (playerId && fromStorageRef.current && !playersLoading && !players.find((p) => p.id === playerId)) {
       localStorage.removeItem(`songkran_player_${roomId}`)
-      setPlayerId(null)
-    }, 4000)
-    return () => clearTimeout(timer)
-  }, [playerId, playersLoading, players, room?.status, roomId])
+    }
+  }, [playerId, playersLoading, players, roomId])
 
   // Clear stale state when room resets to lobby (play again)
   useEffect(() => {
@@ -234,9 +230,11 @@ export default function JoinPage() {
     if (!playerId || !myPlayer) {
       if (!playerId && room.status !== 'lobby') return 'game_started'
       if (playerId && !myPlayer) {
-        // Stale ID from localStorage: show loading while auto-clear effect runs.
-        // Mid-game removal by host: show removed screen.
-        return room.status === 'lobby' ? 'loading' : 'removed'
+        // fromStorageRef = stale ID from previous game → show join form immediately
+        // !fromStorageRef = just joined, waiting for realtime to deliver the row → loading
+        if (fromStorageRef.current && room.status === 'lobby') return 'joining'
+        if (room.status !== 'lobby') return 'removed'
+        return 'loading'
       }
       return 'joining'
     }
