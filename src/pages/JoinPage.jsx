@@ -213,7 +213,7 @@ export default function JoinPage() {
     if (room.status === 'finished') {
       if (room.game_mode === 'quiz') {
         const topScore = Math.max(0, ...players.map((p) => p.score ?? 0))
-        return topScore > 0 && (myPlayer?.score ?? 0) === topScore ? 'champion' : 'eliminated'
+        return topScore > 0 && (myPlayer?.score ?? 0) === topScore ? 'champion' : 'quiz_ended'
       }
       return myPlayer?.is_alive ? 'champion' : 'eliminated'
     }
@@ -313,7 +313,34 @@ export default function JoinPage() {
     )
   }
   if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
-  if (phase === 'champion') return <>{reconnectBanner}<MobileChampionScreen player={myPlayer} /></>
+  if (phase === 'champion') return <>{reconnectBanner}<MobileChampionScreen player={myPlayer} isQuiz={room?.game_mode === 'quiz'} /></>
+  if (phase === 'quiz_ended') {
+    return (
+      <>{reconnectBanner}
+        <div
+          className="relative flex flex-col items-center justify-center min-h-dvh overflow-hidden px-6"
+          style={{ background: 'linear-gradient(175deg, #1a1033 0%, var(--twilight-950) 50%, #0a0814 100%)' }}
+        >
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 10, delay: 0.2 }}
+            className="text-center space-y-6 relative z-10"
+          >
+            <div className="text-7xl">🎯</div>
+            <div className="space-y-2">
+              <p className="text-4xl font-black" style={{ color: 'var(--cream-50)' }}>
+                {myPlayer?.score ?? 0} point{(myPlayer?.score ?? 0) !== 1 ? 's' : ''}
+              </p>
+              <p className="text-lg font-body" style={{ color: 'var(--cream-400)' }}>
+                Good game! Check the leaderboard.
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      </>
+    )
+  }
 
   // ── Random picker: waiting screen with winner celebration ──
   if (phase === 'random_playing') {

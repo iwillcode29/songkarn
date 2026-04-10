@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { LaiThaiDivider } from '../ThaiDecor'
 
-export default function MobileChampionScreen({ player }) {
+export default function MobileChampionScreen({ player, isQuiz = false }) {
   const drops = Array.from({ length: 18 }, (_, i) => ({
     id: i,
     x: 10 + Math.random() * 80,
@@ -81,8 +81,13 @@ export default function MobileChampionScreen({ player }) {
             className="font-black text-3xl leading-tight"
             style={{ color: 'var(--gold-200)' }}
           >
-            WATER CHAMPION! 🏆
+            {isQuiz ? 'QUIZ CHAMPION! 🏆' : 'WATER CHAMPION! 🏆'}
           </p>
+          {isQuiz && (
+            <p className="text-lg font-semibold" style={{ color: 'var(--water-300)' }}>
+              {player?.score ?? 0} point{(player?.score ?? 0) !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
       </motion.div>
     </div>

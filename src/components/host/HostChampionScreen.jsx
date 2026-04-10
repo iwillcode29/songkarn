@@ -82,7 +82,7 @@ export default function HostChampionScreen({ champion, champions = [], isQuiz = 
               className="text-7xl font-black leading-none"
               style={{ color: 'var(--cream-50)', textShadow: '0 4px 40px rgba(232,184,74,0.15)' }}
             >
-              {champion?.name ?? 'Nobody survived!'}
+              {champion?.name ?? (isQuiz ? 'No correct answers!' : 'Nobody survived!')}
             </h1>
           )}
           <p className="text-xl font-semibold" style={{ color: 'var(--gold-200)' }}>

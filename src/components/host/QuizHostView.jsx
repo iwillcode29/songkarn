@@ -54,7 +54,7 @@ export default function QuizHostView({ room, players }) {
   const [isRevealing, setIsRevealing] = useState(false)
   const [revealedAnswer, setRevealedAnswer] = useState(null)
   const [isAdvancing, setIsAdvancing] = useState(false)
-  const [revealStats, setRevealStats] = useState(null) // { survived, eliminated }
+  const [revealStats, setRevealStats] = useState(null) // { correct, wrong }
 
   // Reset reveal state when room advances to a new round.
   // This avoids the race where local state resets before the fresh
