@@ -164,11 +164,20 @@ export default function JoinPage() {
     }
   }, [roomId])
 
-  // Clear stale playerId from previous game — player row no longer exists
+  // Clear stale playerId from previous game — player row no longer exists.
+  // Wait for players to load (length > 0) and give a grace period for the
+  // newly-inserted row to appear via realtime/polling before deciding it's stale.
   useEffect(() => {
-    if (playerId && !playersLoading && players.length >= 0 && !players.find((p) => p.id === playerId) && room?.status === 'lobby') {
-      localStorage.removeItem(`songkran_player_${roomId}`)
-      setPlayerId(null)
+    if (!playerId || playersLoading || !room || room.status !== 'lobby') return
+    if (players.length > 0 && !players.find((p) => p.id === playerId)) {
+      const timer = setTimeout(() => {
+        // Re-check after delay in case realtime was slow
+        if (!players.find((p) => p.id === playerId)) {
+          localStorage.removeItem(`songkran_player_${roomId}`)
+          setPlayerId(null)
+        }
+      }, 3000)
+      return () => clearTimeout(timer)
     }
   }, [playerId, playersLoading, players, room?.status, roomId])
 
@@ -227,7 +236,7 @@ export default function JoinPage() {
     }
     if (!playerId || !myPlayer) {
       if (room.status !== 'lobby') return 'game_started'
-      if (playerId && !myPlayer) return 'stale_player'
+      if (playerId && !myPlayer) return 'loading'
       return 'joining'
     }
     if (room.status === 'lobby') return 'lobby_wait'
@@ -276,7 +285,7 @@ export default function JoinPage() {
     </div>
   )
 
-  if (phase === 'loading' || phase === 'stale_player') return <FullScreenMessage emoji="⏳" text="Loading…" />
+  if (phase === 'loading') return <FullScreenMessage emoji="⏳" text="Loading…" />
   if (phase === 'invalid') {
     return (
       <FullScreenMessage
