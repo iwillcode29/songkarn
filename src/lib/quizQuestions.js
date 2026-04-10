@@ -87,7 +87,7 @@ const QUESTION_POOL = [
   { cat: 'fun', question: 'What does "Wi-Fi" stand for?', a: 'Wireless Fidelity', b: 'Wide Frequency', c: 'Nothing specific', d: 'Wireless Field', correct: 'c' },
 ]
 
-const QUIZ_COUNT = 1
+const QUIZ_COUNT = 10
 
 /**
  * Seeded PRNG — simple mulberry32. Same seed = same sequence.
