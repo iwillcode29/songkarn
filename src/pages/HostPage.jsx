@@ -234,6 +234,11 @@ export default function HostPage() {
       <Lobby
         room={room}
         players={players}
+        onRemovePlayer={async (playerId) => {
+          const { error } = await supabase.from('players').delete().eq('id', playerId)
+          if (error) console.error('Failed to remove player:', error)
+          return { error }
+        }}
         onClearRoom={async () => {
           await supabase.from('rooms').delete().eq('id', room.id)
           localStorage.removeItem('songkran_host_room')

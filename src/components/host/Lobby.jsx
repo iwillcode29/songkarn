@@ -32,10 +32,11 @@ const GAME_MODES = [
   },
 ]
 
-export default function Lobby({ room, players, onClearRoom }) {
+export default function Lobby({ room, players, onRemovePlayer, onClearRoom }) {
   const [starting, setStarting] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [confirmRemoveId, setConfirmRemoveId] = useState(null)
   const joinUrl = `${window.location.origin}/join/${room.id}`
 
   // Unlock audio + start lobby BGM on first click
@@ -223,6 +224,8 @@ export default function Lobby({ room, players, onClearRoom }) {
                     exit={{ opacity: 0, x: -16 }}
                     transition={{ delay: i * 0.04 }}
                     className="flex items-center gap-3 rounded-lg py-2 px-3 sk-surface"
+                    onClick={() => setConfirmRemoveId(confirmRemoveId === player.id ? null : player.id)}
+                    style={{ cursor: 'pointer' }}
                   >
                     <img
                       src={player.avatar_url}
@@ -233,6 +236,31 @@ export default function Lobby({ room, players, onClearRoom }) {
                     <span className="font-medium text-sm flex-1" style={{ color: 'var(--cream-100)' }}>
                       {player.name}
                     </span>
+                    <AnimatePresence>
+                      {confirmRemoveId === player.id && (
+                        <motion.button
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ duration: 0.15 }}
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const { error } = await onRemovePlayer(player.id)
+                            if (!error) setConfirmRemoveId(null)
+                          }}
+                          className="flex items-center justify-center rounded-md text-xs font-bold shrink-0"
+                          style={{
+                            width: 24,
+                            height: 24,
+                            background: 'rgba(217,119,85,0.15)',
+                            color: 'var(--terra-400)',
+                            border: '1px solid rgba(217,119,85,0.3)',
+                          }}
+                        >
+                          ✕
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 ))}
               </AnimatePresence>

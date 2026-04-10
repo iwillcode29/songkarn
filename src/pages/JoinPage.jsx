@@ -127,7 +127,7 @@ export default function JoinPage() {
   }, [roomId])
 
   const { room, loading: roomLoading, refetch: refetchRoom } = useRoom(roomId)
-  const { players, refetch: refetchPlayers } = usePlayers(roomId)
+  const { players, loading: playersLoading, refetch: refetchPlayers } = usePlayers(roomId)
   const { matches, refetch: refetchMatches } = useMatches(roomId)
 
   const { isReconnecting } = useReconnect(
@@ -208,13 +208,14 @@ export default function JoinPage() {
   }, [])
 
   const phase = useMemo(() => {
-    if (roomLoading) return 'loading'
+    if (roomLoading || playersLoading) return 'loading'
     if (!room) return 'invalid'
     if (room.status === 'finished') {
       return myPlayer?.is_alive ? 'champion' : 'eliminated'
     }
     if (!playerId || !myPlayer) {
       if (room.status !== 'lobby') return 'game_started'
+      if (playerId && !myPlayer) return 'removed'
       return 'joining'
     }
     if (room.status === 'lobby') return 'lobby_wait'
@@ -281,6 +282,31 @@ export default function JoinPage() {
         text="Game already in progress!"
         sub="Wait for the next round to join."
       />
+    )
+  }
+  if (phase === 'removed') {
+    return (
+      <div
+        className="flex flex-col items-center justify-center min-h-dvh text-center px-8 space-y-4"
+        style={{ background: 'var(--twilight-950)' }}
+      >
+        <div className="text-6xl">👋</div>
+        <p className="font-bold text-xl" style={{ color: 'var(--cream-50)' }}>You were removed</p>
+        <p className="font-body" style={{ color: 'var(--cream-400)' }}>The host removed you from the room.</p>
+        <button
+          onClick={() => {
+            localStorage.removeItem(`songkran_player_${roomId}`)
+            setPlayerId(null)
+          }}
+          className="px-5 py-2.5 rounded-xl font-bold text-sm"
+          style={{
+            background: 'linear-gradient(135deg, var(--gold-500), var(--gold-600))',
+            color: 'var(--twilight-950)',
+          }}
+        >
+          Rejoin
+        </button>
+      </div>
     )
   }
   if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
@@ -520,9 +546,9 @@ export default function JoinPage() {
       {showArena && (
         <div
           ref={shakeRef}
-          className={`${phase === 'quiz_playing' ? 'flex-1 min-h-0' : ''} w-full flex items-center justify-center`}
+          className="flex-1 min-h-0 w-full flex items-center justify-center"
         >
-          <div style={phase === 'quiz_playing' ? { width: '100%', maxWidth: 'calc((100dvh - 220px) * 800 / 450)' } : { width: '100%' }}>
+          <div style={{ width: '100%', maxWidth: phase === 'quiz_playing' ? 'calc((100dvh - 220px) * 1200 / 675)' : phase === 'lobby_wait' ? 'calc((100dvh - 120px) * 1200 / 675)' : undefined }}>
             <Arena
               roomId={roomId}
               playerId={playerId}
