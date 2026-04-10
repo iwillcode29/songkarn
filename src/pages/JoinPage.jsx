@@ -164,6 +164,14 @@ export default function JoinPage() {
     }
   }, [roomId])
 
+  // Clear stale playerId from previous game — player row no longer exists
+  useEffect(() => {
+    if (playerId && !playersLoading && players.length >= 0 && !players.find((p) => p.id === playerId) && room?.status === 'lobby') {
+      localStorage.removeItem(`songkran_player_${roomId}`)
+      setPlayerId(null)
+    }
+  }, [playerId, playersLoading, players, room?.status, roomId])
+
   // Clear stale state when room resets to lobby (play again)
   useEffect(() => {
     if (room && room.status === 'lobby') { setQuizReveal(null); setQuizPopupOpen(false); setRandomWinner(null) }
@@ -219,7 +227,7 @@ export default function JoinPage() {
     }
     if (!playerId || !myPlayer) {
       if (room.status !== 'lobby') return 'game_started'
-      if (playerId && !myPlayer) return 'removed'
+      if (playerId && !myPlayer) return 'stale_player'
       return 'joining'
     }
     if (room.status === 'lobby') return 'lobby_wait'
@@ -268,7 +276,7 @@ export default function JoinPage() {
     </div>
   )
 
-  if (phase === 'loading') return <FullScreenMessage emoji="⏳" text="Loading…" />
+  if (phase === 'loading' || phase === 'stale_player') return <FullScreenMessage emoji="⏳" text="Loading…" />
   if (phase === 'invalid') {
     return (
       <FullScreenMessage
