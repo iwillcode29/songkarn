@@ -42,6 +42,8 @@ export default function JoinPage() {
   const [playerId, setPlayerId] = useState(
     () => localStorage.getItem(`songkran_player_${roomId}`) ?? null,
   )
+  // Track IDs set this session (from join form) vs loaded from localStorage (potentially stale)
+  const fromStorageRef = useRef(!!localStorage.getItem(`songkran_player_${roomId}`))
 
   const joystickRef = useRef({ dx: 0, dy: 0 })
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
@@ -164,21 +166,16 @@ export default function JoinPage() {
     }
   }, [roomId])
 
-  // Clear stale playerId from previous game — player row no longer exists.
-  // Wait for players to load (length > 0) and give a grace period for the
-  // newly-inserted row to appear via realtime/polling before deciding it's stale.
+  // Clear stale playerId from a previous game — only for IDs loaded from localStorage.
+  // IDs set this session (from join form) are never cleared here.
   useEffect(() => {
-    if (!playerId || playersLoading || !room || room.status !== 'lobby') return
-    if (players.length > 0 && !players.find((p) => p.id === playerId)) {
-      const timer = setTimeout(() => {
-        // Re-check after delay in case realtime was slow
-        if (!players.find((p) => p.id === playerId)) {
-          localStorage.removeItem(`songkran_player_${roomId}`)
-          setPlayerId(null)
-        }
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
+    if (!playerId || !fromStorageRef.current || playersLoading || !room || room.status !== 'lobby') return
+    if (players.find((p) => p.id === playerId)) return // player exists — not stale
+    const timer = setTimeout(() => {
+      localStorage.removeItem(`songkran_player_${roomId}`)
+      setPlayerId(null)
+    }, 4000)
+    return () => clearTimeout(timer)
   }, [playerId, playersLoading, players, room?.status, roomId])
 
   // Clear stale state when room resets to lobby (play again)
@@ -235,8 +232,12 @@ export default function JoinPage() {
       return myPlayer?.is_alive ? 'champion' : 'eliminated'
     }
     if (!playerId || !myPlayer) {
-      if (room.status !== 'lobby') return 'game_started'
-      if (playerId && !myPlayer) return 'loading'
+      if (!playerId && room.status !== 'lobby') return 'game_started'
+      if (playerId && !myPlayer) {
+        // Stale ID from localStorage: show loading while auto-clear effect runs.
+        // Mid-game removal by host: show removed screen.
+        return room.status === 'lobby' ? 'loading' : 'removed'
+      }
       return 'joining'
     }
     if (room.status === 'lobby') return 'lobby_wait'
@@ -329,7 +330,7 @@ export default function JoinPage() {
       </div>
     )
   }
-  if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={setPlayerId} />
+  if (phase === 'joining') return <JoinForm roomId={roomId} onJoined={(id) => { fromStorageRef.current = false; setPlayerId(id) }} />
   if (phase === 'champion') return <>{reconnectBanner}<MobileChampionScreen player={myPlayer} isQuiz={room?.game_mode === 'quiz'} /></>
   if (phase === 'quiz_ended') {
     return (
