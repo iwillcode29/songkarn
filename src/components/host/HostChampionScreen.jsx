@@ -68,7 +68,7 @@ export default function HostChampionScreen({ champion, champions = [], isQuiz = 
             className="font-bold text-xl uppercase tracking-[0.2em]"
             style={{ color: 'var(--gold-400)' }}
           >
-            {isQuiz && champions.length > 1 ? 'Champions' : isQuiz && champions.length === 0 ? 'Game Over' : 'Champion'}
+            {isQuiz && champions.length > 1 ? 'Tied Champions' : isQuiz && champions.length === 0 ? 'Game Over' : 'Champion'}
           </p>
           {isQuiz && champions.length > 1 ? (
             <h1
@@ -87,7 +87,7 @@ export default function HostChampionScreen({ champion, champions = [], isQuiz = 
           )}
           <p className="text-xl font-semibold" style={{ color: 'var(--gold-200)' }}>
             {isQuiz
-              ? champions.length > 0 ? 'Quiz Survivors! 🎉' : 'Better luck next time! 💦'
+              ? champions.length > 0 ? `${champion?.score ?? 0} point${(champion?.score ?? 0) !== 1 ? 's' : ''} 🎉` : 'Better luck next time! 💦'
               : 'Water Champion! 💦'}
           </p>
         </div>

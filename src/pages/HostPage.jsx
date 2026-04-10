@@ -58,13 +58,28 @@ export default function HostPage() {
   )
 
   const champion = useMemo(
-    () => (room?.status === 'finished' ? players.find((p) => p.is_alive) : null),
-    [room?.status, players],
+    () => {
+      if (room?.status !== 'finished') return null
+      if (room?.game_mode === 'quiz') {
+        const sorted = [...players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        return sorted[0] ?? null
+      }
+      return players.find((p) => p.is_alive) ?? null
+    },
+    [room?.status, room?.game_mode, players],
   )
 
   const champions = useMemo(
-    () => (room?.status === 'finished' ? players.filter((p) => p.is_alive) : []),
-    [room?.status, players],
+    () => {
+      if (room?.status !== 'finished') return []
+      if (room?.game_mode === 'quiz') {
+        const sorted = [...players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        const topScore = sorted[0]?.score ?? 0
+        return topScore > 0 ? sorted.filter((p) => (p.score ?? 0) === topScore) : []
+      }
+      return players.filter((p) => p.is_alive)
+    },
+    [room?.status, room?.game_mode, players],
   )
 
   // ── Game Actions ──────────────────────────────────────────────
@@ -259,7 +274,7 @@ export default function HostPage() {
           setIsAdvancing(true)
           try {
             await supabase.from('matches').delete().eq('room_id', room.id)
-            await supabase.from('players').update({ is_alive: true }).eq('room_id', room.id)
+            await supabase.from('players').update({ is_alive: true, score: 0 }).eq('room_id', room.id)
             await supabase
               .from('rooms')
               .update({ status: 'lobby', current_round: 1, quiz_seed: null, question_started_at: null })

@@ -19,7 +19,7 @@ export function usePlayers(roomId) {
       .order('created_at', { ascending: true })
     if (!error) setPlayers(prev => {
       const next = data ?? []
-      if (prev.length === next.length && prev.every((p, i) => p.id === next[i].id && p.is_alive === next[i].is_alive)) return prev
+      if (prev.length === next.length && prev.every((p, i) => p.id === next[i].id && p.is_alive === next[i].is_alive && p.score === next[i].score)) return prev
       return next
     })
     setLoading(false)

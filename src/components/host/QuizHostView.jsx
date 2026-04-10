@@ -70,7 +70,7 @@ export default function QuizHostView({ room, players }) {
   const questionIndex = room.current_round - 1
   const question = questions[questionIndex] ?? null
   const isLastQuestion = questionIndex >= questions.length - 1
-  const alivePlayers = useMemo(() => players.filter((p) => p.is_alive), [players])
+  const sortedByScore = useMemo(() => [...players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)), [players])
 
   const allRevealed = revealedAnswer !== null
 
@@ -91,10 +91,10 @@ export default function QuizHostView({ room, players }) {
   // Auto-reveal when countdown expires (guard against empty players on host refresh)
   const handleRevealRef = useRef(null)
   useEffect(() => {
-    if (isExpired && !allRevealed && !revealingRef.current && alivePlayers.length > 0) {
+    if (isExpired && !allRevealed && !revealingRef.current && players.length > 0) {
       handleRevealRef.current?.()
     }
-  }, [isExpired, allRevealed, alivePlayers.length])
+  }, [isExpired, allRevealed, players.length])
 
   const handleReveal = useCallback(async () => {
     if (revealingRef.current || isRevealing || !question) return
@@ -103,13 +103,11 @@ export default function QuizHostView({ room, players }) {
 
     try {
       const correctAnswer = question.correct
-      const aliveSnapshot = [...alivePlayers]
+      const playersSnapshot = [...players]
 
       // Clear previously reported positions and broadcast reveal to mobile clients.
-      // Each mobile client will respond with their exact position (quiz-pos event).
       reportedPositionsRef.current.clear()
       setRevealedAnswer(correctAnswer)
-      // Retry send if channel is reconnecting (e.g. after CHANNEL_ERROR recovery)
       const revealPayload = {
         type: 'broadcast', event: 'quiz-reveal',
         payload: { correct: correctAnswer, round: room.current_round },
@@ -117,47 +115,53 @@ export default function QuizHostView({ room, players }) {
       if (channelRef.current?.state === 'joined') {
         channelRef.current.send(revealPayload)
       } else {
-        // Channel not ready — wait briefly and retry once
         await new Promise((r) => setTimeout(r, 1500))
         channelRef.current?.send(revealPayload)
       }
 
-      // Wait for mobile clients to report their positions + animation time.
-      // 4s gives enough time for slow party WiFi round-trips.
+      // Wait for mobile clients to report their positions.
       await new Promise((r) => setTimeout(r, 4000))
 
-      // Use positions reported by mobile clients (exact, no lag).
-      // Fall back to host's broadcast-target positions if a client didn't report.
-      // Players with no position at all are NOT eliminated — skip them gracefully.
+      // Determine who was in the correct zone → +1 score
       const hostSnapshot = new Map(arenaRef.current)
-      const eliminatedIds = []
+      const correctIds = []
+      let noData = 0
 
-      for (const p of aliveSnapshot) {
+      for (const p of playersSnapshot) {
         const pos = reportedPositionsRef.current.get(p.id) ?? hostSnapshot.get(p.id)
-        if (!pos) continue // no position data — don't punish for connectivity
+        if (!pos) { noData++; continue }
         const zone = getZoneForPosition(pos.x, pos.y)
-        if (zone !== correctAnswer) {
-          eliminatedIds.push(p.id)
+        if (zone === correctAnswer) {
+          correctIds.push(p.id)
         }
       }
 
-      // Eliminate wrong players
-      if (eliminatedIds.length > 0) {
-        await supabase.from('players').update({ is_alive: false }).in('id', eliminatedIds)
+      // Atomic score increment — try RPC first, fall back to individual updates
+      if (correctIds.length > 0) {
+        const { error: rpcError } = await supabase.rpc('increment_score', { player_ids: correctIds })
+        if (rpcError) {
+          // Fallback: individual updates (less atomic but works without RPC)
+          await Promise.all(
+            correctIds.map((id) => {
+              const current = playersSnapshot.find((p) => p.id === id)
+              return supabase.from('players').update({ score: (current?.score ?? 0) + 1 }).eq('id', id)
+            }),
+          )
+        }
       }
 
-      const survivorCount = aliveSnapshot.length - eliminatedIds.length
-      setRevealStats({ survived: survivorCount, eliminated: eliminatedIds.length })
+      const answeredCount = playersSnapshot.length - noData
+      setRevealStats({ correct: correctIds.length, wrong: answeredCount - correctIds.length })
 
-      // End game if no survivors or last question
-      if (survivorCount <= 0 || isLastQuestion) {
+      // End game after last question
+      if (isLastQuestion) {
         await supabase.from('rooms').update({ status: 'finished' }).eq('id', room.id)
       }
     } finally {
       setIsRevealing(false)
       revealingRef.current = false
     }
-  }, [isRevealing, question, alivePlayers, room.current_round, isLastQuestion, room.id])
+  }, [isRevealing, question, players, room.current_round, isLastQuestion, room.id])
 
   // Keep ref current so auto-reveal effect always calls the latest closure
   useEffect(() => { handleRevealRef.current = handleReveal }, [handleReveal])
@@ -212,7 +216,7 @@ export default function QuizHostView({ room, players }) {
               </span>
             </h2>
             <p className="font-body text-sm mt-1" style={{ color: 'var(--cream-400)' }}>
-              {alivePlayers.length} player{alivePlayers.length !== 1 ? 's' : ''} remaining
+              {players.length} player{players.length !== 1 ? 's' : ''}
             </p>
           </div>
 
@@ -241,7 +245,7 @@ export default function QuizHostView({ room, players }) {
                 </motion.button>
               )}
 
-              {allRevealed && !isRevealing && room.status === 'playing' && !isLastQuestion && revealStats?.survived > 0 && (
+              {allRevealed && !isRevealing && room.status === 'playing' && !isLastQuestion && (
                 <motion.button
                   key="next"
                   initial={{ scale: 0, opacity: 0 }}
@@ -331,22 +335,74 @@ export default function QuizHostView({ room, players }) {
               className="text-center py-2"
             >
               <p className="font-bold" style={{ color: 'var(--water-300)' }}>
-                {revealStats.survived} survived — {revealStats.eliminated} eliminated
+                {revealStats.correct} correct — {revealStats.wrong} wrong
               </p>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Arena with zones */}
-        <div className="max-w-3xl mx-auto">
-          <Arena
-            roomId={room.id}
-            playerId={null}
-            players={alivePlayers}
-            joystickRef={null}
-            quizOverlay={quizOverlay}
-            positionsMapRef={arenaRef}
-          />
+        {/* Arena + Leaderboard side by side */}
+        <div className="flex gap-4 items-start">
+          <div className="flex-1 min-w-0 max-w-3xl">
+            <Arena
+              roomId={room.id}
+              playerId={null}
+              players={players}
+              joystickRef={null}
+              quizOverlay={quizOverlay}
+              positionsMapRef={arenaRef}
+            />
+          </div>
+
+          {/* Leaderboard */}
+          <div className="w-56 flex-shrink-0 sk-surface sk-border-top rounded-2xl p-4">
+            <p className="font-black text-sm uppercase tracking-wider mb-3" style={{ color: 'var(--gold-400)' }}>
+              Leaderboard
+            </p>
+            <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
+              <AnimatePresence initial={false}>
+                {sortedByScore.map((p, i) => (
+                  <motion.div
+                    key={p.id}
+                    layout
+                    initial={{ opacity: 0, x: 16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -16 }}
+                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                    className="flex items-center gap-2 rounded-lg py-1.5 px-2"
+                    style={{
+                      background: i === 0 && (p.score ?? 0) > 0
+                        ? 'rgba(232,184,74,0.1)'
+                        : 'rgba(255,255,255,0.03)',
+                      border: i === 0 && (p.score ?? 0) > 0
+                        ? '1px solid rgba(232,184,74,0.2)'
+                        : '1px solid transparent',
+                    }}
+                  >
+                    <span
+                      className="font-black text-xs w-5 text-center flex-shrink-0"
+                      style={{ color: i < 3 ? 'var(--gold-400)' : 'var(--cream-400)' }}
+                    >
+                      {i + 1}
+                    </span>
+                    <img src={p.avatar_url} alt="" className="w-6 h-6 rounded-full flex-shrink-0" />
+                    <span
+                      className="font-medium text-sm truncate"
+                      style={{ color: 'var(--cream-100)' }}
+                    >
+                      {p.name}
+                    </span>
+                    <span
+                      className="ml-auto font-black text-sm flex-shrink-0"
+                      style={{ color: 'var(--gold-400)' }}
+                    >
+                      {p.score ?? 0}
+                    </span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
       </div>
     </div>

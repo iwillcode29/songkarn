@@ -211,6 +211,10 @@ export default function JoinPage() {
     if (roomLoading || playersLoading) return 'loading'
     if (!room) return 'invalid'
     if (room.status === 'finished') {
+      if (room.game_mode === 'quiz') {
+        const topScore = Math.max(0, ...players.map((p) => p.score ?? 0))
+        return topScore > 0 && (myPlayer?.score ?? 0) === topScore ? 'champion' : 'eliminated'
+      }
       return myPlayer?.is_alive ? 'champion' : 'eliminated'
     }
     if (!playerId || !myPlayer) {
@@ -220,9 +224,8 @@ export default function JoinPage() {
     }
     if (room.status === 'lobby') return 'lobby_wait'
 
-    // Quiz mode: playing = quiz_playing, eliminated = eliminated
+    // Quiz mode: all players stay in quiz_playing (no elimination)
     if (room.game_mode === 'quiz') {
-      if (!myPlayer.is_alive) return 'eliminated'
       return 'quiz_playing'
     }
 
@@ -375,8 +378,7 @@ export default function JoinPage() {
   const question = isQuiz ? (questions[questionIndex] ?? null) : null
   const quizOverlay = phase === 'quiz_playing' ? <QuizZones question={question} revealedAnswer={quizReveal} /> : null
 
-  // In quiz mode, show only alive players; in lobby, show all
-  const arenaPlayers = phase === 'quiz_playing' ? players.filter((p) => p.is_alive) : players
+  const arenaPlayers = players
 
   // ── Mobile landscape + overlay controls vs Desktop normal layout ──
   const showControls = showArena && isTouchDevice && !(phase === 'quiz_playing' && quizReveal)

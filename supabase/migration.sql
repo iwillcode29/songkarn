@@ -92,3 +92,16 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.matches;
 -- ────────────────────────────────────────
 
 -- ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS quiz_category TEXT DEFAULT NULL;
+
+-- ────────────────────────────────────────
+-- 7. QUIZ SCORE (run this if upgrading)
+-- score: per-player score for quiz mode (incremented on correct answers).
+-- ────────────────────────────────────────
+
+-- ALTER TABLE public.players ADD COLUMN IF NOT EXISTS score INT NOT NULL DEFAULT 0;
+
+-- Atomic score increment function for quiz mode (avoids read-modify-write races).
+-- CREATE OR REPLACE FUNCTION public.increment_score(player_ids UUID[])
+-- RETURNS void AS $$
+--   UPDATE public.players SET score = score + 1 WHERE id = ANY(player_ids);
+-- $$ LANGUAGE sql VOLATILE;
