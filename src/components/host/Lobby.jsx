@@ -37,6 +37,7 @@ export default function Lobby({ room, players, onRemovePlayer, onClearRoom }) {
   const [clearing, setClearing] = useState(false)
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [confirmRemoveId, setConfirmRemoveId] = useState(null)
+  const [removingId, setRemovingId] = useState(null)
   const joinUrl = `${window.location.origin}/join/${room.id}`
 
   // Unlock audio + start lobby BGM on first click
@@ -216,53 +217,64 @@ export default function Lobby({ room, players, onRemovePlayer, onClearRoom }) {
 
             <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
               <AnimatePresence>
-                {players.map((player, i) => (
-                  <motion.div
-                    key={player.id}
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="flex items-center gap-3 rounded-lg py-2 px-3 sk-surface"
-                    onClick={() => setConfirmRemoveId(confirmRemoveId === player.id ? null : player.id)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <img
-                      src={player.avatar_url}
-                      alt={player.name}
-                      className="w-8 h-8 rounded-full"
-                      style={{ background: 'rgba(255,255,255,0.08)' }}
-                    />
-                    <span className="font-medium text-sm flex-1" style={{ color: 'var(--cream-100)' }}>
-                      {player.name}
-                    </span>
-                    <AnimatePresence>
-                      {confirmRemoveId === player.id && (
-                        <motion.button
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.15 }}
-                          onClick={async (e) => {
-                            e.stopPropagation()
-                            const { error } = await onRemovePlayer(player.id)
-                            if (!error) setConfirmRemoveId(null)
-                          }}
-                          className="flex items-center justify-center rounded-md text-xs font-bold shrink-0"
-                          style={{
-                            width: 24,
-                            height: 24,
-                            background: 'rgba(217,119,85,0.15)',
-                            color: 'var(--terra-400)',
-                            border: '1px solid rgba(217,119,85,0.3)',
-                          }}
-                        >
-                          ✕
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                ))}
+                {players.map((player, i) => {
+                  const isConfirming = confirmRemoveId === player.id
+                  const isRemoving = removingId === player.id
+                  return (
+                    <motion.div
+                      key={player.id}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ delay: i * 0.04 }}
+                      className="flex items-center gap-3 rounded-lg py-2 px-3 sk-surface"
+                      onClick={() => !isRemoving && setConfirmRemoveId(isConfirming ? null : player.id)}
+                      style={{ cursor: isRemoving ? 'default' : 'pointer' }}
+                    >
+                      <img
+                        src={player.avatar_url}
+                        alt={player.name}
+                        className="w-8 h-8 rounded-full"
+                        style={{ background: 'rgba(255,255,255,0.08)' }}
+                      />
+                      <span className="font-medium text-sm flex-1" style={{ color: 'var(--cream-100)' }}>
+                        {player.name}
+                      </span>
+                      <AnimatePresence>
+                        {isConfirming && (
+                          <motion.button
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            transition={{ duration: 0.15 }}
+                            disabled={isRemoving}
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              setRemovingId(player.id)
+                              const { error } = await onRemovePlayer(player.id)
+                              if (!error) {
+                                setConfirmRemoveId(null)
+                              }
+                              setRemovingId(null)
+                            }}
+                            className="flex items-center justify-center rounded-md text-xs font-bold shrink-0"
+                            style={{
+                              width: isRemoving ? 'auto' : 24,
+                              height: 24,
+                              paddingInline: isRemoving ? 8 : 0,
+                              background: 'rgba(217,119,85,0.15)',
+                              color: 'var(--terra-400)',
+                              border: '1px solid rgba(217,119,85,0.3)',
+                              opacity: isRemoving ? 0.6 : 1,
+                            }}
+                          >
+                            {isRemoving ? 'Removing…' : '✕'}
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )
+                })}
               </AnimatePresence>
 
               {players.length === 0 && (
