@@ -63,16 +63,16 @@ const QUESTION_POOL = [
   { cat: 'food', question: 'Where did pizza originate?', a: 'Greece', b: 'Italy', c: 'USA', d: 'Turkey', correct: 'b' },
 
   // ── Songkran ──
-  { cat: 'songkran', question: 'When is Songkran traditionally celebrated in Thailand?', a: 'January 1–3', b: 'April 13–15', c: 'March 20–22', d: 'December 25–27', correct: 'b' },
-  { cat: 'songkran', question: 'What does the word "Songkran" originate from?', a: 'A Thai word meaning "happiness"', b: 'A Khmer word meaning "rain season"', c: 'A Sanskrit word meaning "passage"', d: 'A Pali word meaning "celebration"', correct: 'c' },
-  { cat: 'songkran', question: 'What does water symbolize during Songkran?', a: 'Wealth and prosperity', b: 'Cleansing, purification, and blessings', c: 'Harvest and fertility', d: 'Victory and power', correct: 'b' },
-  { cat: 'songkran', question: 'What is "rod nam dam hua"?', a: 'A traditional Thai dance', b: 'A Thai dessert eaten during Songkran', c: 'Pouring scented water over elders\' hands to show respect', d: 'A water fight competition', correct: 'c' },
-  { cat: 'songkran', question: 'Which activity is commonly performed at temples during Songkran?', a: 'Flying kites', b: 'Pouring water over Buddha images and making merit', c: 'Lighting fireworks', d: 'Running marathons', correct: 'b' },
-  { cat: 'songkran', question: 'Songkran also marks which occasion?', a: 'Thai New Year', b: 'Thai Independence Day', c: "The King's Birthday", d: "Buddha's Enlightenment Day", correct: 'a' },
-  { cat: 'songkran', question: 'Which country also celebrates a similar water festival?', a: 'Japan', b: 'Myanmar (Thingyan)', c: 'South Korea', d: 'China', correct: 'b' },
-  { cat: 'songkran', question: "What material is traditionally used to create a paste applied to people's faces during Songkran?", a: 'Rice flour', b: 'Turmeric powder', c: 'Thanaka (din sor pong)', d: 'Coconut oil', correct: 'c' },
-  { cat: 'songkran', question: 'What did UNESCO recognize Songkran as in 2023?', a: 'A World Heritage Site', b: 'An Intangible Cultural Heritage of Humanity', c: 'A Global Holiday', d: 'A Protected National Event', correct: 'b' },
-  { cat: 'songkran', question: 'What do many Thai people traditionally do on the first day of Songkran (April 13)?', a: 'Have a water fight in the streets', b: 'Clean their homes and visit temples', c: 'Exchange gifts with friends', d: 'Wear costumes and dance', correct: 'b' },
+  { cat: 'songkran', question: 'When is Songkran officially celebrated in Thailand?', a: 'April 1–3', b: 'April 13–15', c: 'April 20–22', d: 'March 13–15', correct: 'b' },
+  { cat: 'songkran', question: 'What does "Songkran" originally mean?', a: 'Water festival', b: 'New beginning', c: 'Astrological passage (moving of the sun)', d: 'Rainy season', correct: 'c' },
+  { cat: 'songkran', question: 'What is the tradition of "Rod Nam Dam Hua"?', a: 'Splashing strangers with water', b: 'Pouring scented water on elders\' hands to show respect', c: 'Bathing Buddha statues at the temple', d: 'Building sand pagodas', correct: 'b' },
+  { cat: 'songkran', question: 'Which city is famous for having the biggest Songkran celebration in Thailand?', a: 'Bangkok', b: 'Pattaya', c: 'Chiang Mai', d: 'Phuket', correct: 'c' },
+  { cat: 'songkran', question: 'Why do people bring sand into temples during Songkran?', a: 'To build sandcastles for fun', b: 'To replace sand carried away on their feet throughout the year', c: 'To decorate the temple', d: 'To make cement for repairs', correct: 'b' },
+  { cat: 'songkran', question: 'What is the scented water used during Songkran typically made from?', a: 'Lemon and salt', b: 'Jasmine and rose petals soaked in water', c: 'Coconut milk', d: 'Herbal tea', correct: 'b' },
+  { cat: 'songkran', question: 'Which country does NOT celebrate a water festival similar to Songkran?', a: 'Myanmar (Thingyan)', b: 'Laos (Pi Mai)', c: 'Cambodia (Chaul Chnam Thmey)', d: 'Japan', correct: 'd' },
+  { cat: 'songkran', question: 'What is "Wan Nao" during Songkran?', a: 'The first day of celebration', b: 'The second day — a day of preparation between the old and new year', c: 'The last day of the festival', d: 'The day for water fights only', correct: 'b' },
+  { cat: 'songkran', question: 'Which food is commonly prepared during Songkran?', a: 'Sushi', b: 'Khao Chae (rice soaked in cool jasmine water)', c: 'Pad Thai', d: 'Som Tam', correct: 'b' },
+  { cat: 'songkran', question: "In what year was Songkran inscribed on UNESCO's Intangible Cultural Heritage list?", a: '2018', b: '2020', c: '2023', d: '2015', correct: 'c' },
 
   // ── Fun & Random ──
   { cat: 'fun', question: 'How many colors are in a rainbow?', a: '5', b: '6', c: '7', d: '8', correct: 'c' },
