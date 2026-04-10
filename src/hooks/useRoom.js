@@ -11,16 +11,21 @@ export function useRoom(roomId) {
 
   const fetchRoom = useCallback(async () => {
     if (!roomId) return
-    const { data, error } = await supabase
-      .from('rooms')
-      .select('*')
-      .eq('id', roomId)
-      .single()
-    if (!error) setRoom(prev => {
-      if (prev && data && prev.status === data.status && prev.current_round === data.current_round && prev.game_mode === data.game_mode && prev.question_started_at === data.question_started_at && prev.quiz_seed === data.quiz_seed) return prev
-      return data
-    })
-    setLoading(false)
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('id', roomId)
+        .single()
+      if (!error) setRoom(prev => {
+        if (prev && data && prev.status === data.status && prev.current_round === data.current_round && prev.game_mode === data.game_mode && prev.question_started_at === data.question_started_at && prev.quiz_seed === data.quiz_seed) return prev
+        return data
+      })
+    } catch (e) {
+      console.warn('fetchRoom error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [roomId])
 
   useEffect(() => {

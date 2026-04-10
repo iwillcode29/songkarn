@@ -12,17 +12,22 @@ export function usePlayers(roomId) {
 
   const fetchPlayers = useCallback(async () => {
     if (!roomId) return
-    const { data, error } = await supabase
-      .from('players')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: true })
-    if (!error) setPlayers(prev => {
-      const next = data ?? []
-      if (prev.length === next.length && prev.every((p, i) => p.id === next[i].id && p.is_alive === next[i].is_alive && p.score === next[i].score)) return prev
-      return next
-    })
-    setLoading(false)
+    try {
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true })
+      if (!error) setPlayers(prev => {
+        const next = data ?? []
+        if (prev.length === next.length && prev.every((p, i) => p.id === next[i].id && p.is_alive === next[i].is_alive && p.score === next[i].score)) return prev
+        return next
+      })
+    } catch (e) {
+      console.warn('fetchPlayers error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [roomId])
 
   useEffect(() => {
